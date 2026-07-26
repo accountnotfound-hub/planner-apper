@@ -391,9 +391,6 @@
     <div id="loginMsg"></div>
     <button id="loginBtn">Log in</button>
     <button id="signupBtn">Create account</button>
-    <button id="googleBtn" style="background:white;color:#333;display:none;">
-      Continue with Google
-    </button>
     <div id="storageNote"></div>
   </div>
 
@@ -411,31 +408,7 @@
   </div>
 </div>
 
-<script type="module">
-// ------------------------------------------------------------
-// PART 0: GOOGLE SIGN-IN SETUP (Firebase) — OPTIONAL
-//
-// Google sign-in only works once your app (1) lives on the
-// internet and (2) is registered with Google. The free way:
-//   1. Put this file online with GitHub Pages (free hosting).
-//   2. Go to console.firebase.google.com → Add project.
-//   3. In the project: Build → Authentication → enable Google.
-//      Add your GitHub Pages domain under "Authorized domains".
-//   4. Build → Firestore Database → Create (start in test mode).
-//   5. Project settings → your apps → Web app → copy the
-//      firebaseConfig object and PASTE IT BELOW instead of null.
-//
-// Until you do that, this stays null and the app runs exactly
-// as before with PIN accounts. Paste the config → the
-// "Continue with Google" button appears and your data saves to
-// the CLOUD (same account on your phone AND laptop!).
-// ------------------------------------------------------------
-const firebaseConfig = null; /* e.g.
-const firebaseConfig = {
-  apiKey: "...", authDomain: "myplanner-xxxx.firebaseapp.com",
-  projectId: "myplanner-xxxx", appId: "..."
-}; */
-
+<script>
 // ------------------------------------------------------------
 // PART 1: THE DATA — the whole app is these two arrays.
 // An "activity" is anything that repeats weekly (a class, gym,
@@ -638,6 +611,15 @@ function toggleTask(id) {
   if (t) t.done = !t.done;
   render();
 }
+
+// IMPORTANT: this script is a MODULE (needed for the Firebase import),
+// and module functions are private — but the checkbox and ✕ buttons
+// call these by name from inside the HTML (onclick="toggleTask(3)").
+// So we deliberately publish these three on the global window,
+// otherwise the buttons shout into the void and nothing happens.
+window.toggleTask = toggleTask;
+window.deleteTask = deleteTask;
+window.deleteActivity = deleteActivity;
 
 document.getElementById('activityForm').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -898,14 +880,12 @@ function saveUsers(users) {
 }
 
 let currentUser = null;
-let cloudSave = null;   // set by the Google/Firebase code when signed in
 
 // the alarm preferences — saved with the rest of your data
 let alarmCfg = { enabled: true, sound: 'beep', volume: 0.6, before: 5 };
 
 // called by render() after every change: quietly saves your data
 function persist() {
-  if (cloudSave) { cloudSave(); return; }   // cloud users save to the cloud
   if (!currentUser) return;
   const users = getUsers();
   if (!users[currentUser]) return;
@@ -1032,263 +1012,6 @@ if (!storageOK) {
     'Note: storage is blocked in this preview, so accounts last only while the app is open. Open the file in your own browser and everything saves for real.';
 }
 
-// ------------------------------------------------------------
-// PART 9: GOOGLE SIGN-IN + CLOUD SAVING (activates only when
-// you paste your firebaseConfig in PART 0 at the top).
-//
-// How it works when active:
-//  • signInWithPopup opens Google's own login window — your app
-//    NEVER sees the password, Google just hands back "this is
-//    definitely osama@gmail.com". That's real authentication.
-//  • Your data saves to Firestore (Google's cloud database) at
-//    planners/<your-uid> — so the same account works on every
-//    device. cloudSave plugs into the same persist() hook.
-// ------------------------------------------------------------
-async function initCloud() {
-  if (!firebaseConfig) {
-    // show the button anyway — hidden features confuse users.
-    // Clicking it explains what's needed instead of doing nothing.
-    const gBtn = document.getElementById('googleBtn');
-    gBtn.style.display = 'block';
-    gBtn.addEventListener('click', () => {
-      loginMsg.style.color = '#bfe0ff';
-      loginMsg.textContent =
-        'Google login needs a one-time setup: host this app online, then follow the 5 steps written at the top of the code (Firebase). Until then, use a PIN account!';
-    });
-    return;
-  }
-  try {
-    // dynamic import = only download Firebase if we actually need it
-    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
-    const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-
-    const fbApp = appMod.initializeApp(firebaseConfig);
-    const auth = authMod.getAuth(fbApp);
-    const db = dbMod.getFirestore(fbApp);
-    const googleBtn = document.getElementById('googleBtn');
-    googleBtn.style.display = 'block';
-
-    // one function that saves your world to the cloud
-    async function saveToCloud(uid) {
-      try {
-        await dbMod.setDoc(dbMod.doc(db, 'planners', uid),
-          { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg });
-      } catch (e) { /* offline? next change will try again */ }
-    }
-
-    async function enterCloudApp(user) {
-      // load this Google account's saved planner (if any)
-      try {
-        const snap = await dbMod.getDoc(dbMod.doc(db, 'planners', user.uid));
-        if (snap.exists()) {
-          const saved = snap.data();
-          activities = saved.activities; tasks = saved.tasks; nextId = saved.nextId;
-          if (saved.alarm) alarmCfg = saved.alarm;
-        }
-      } catch (e) {}
-      currentUser = null;                         // not a PIN account
-      cloudSave = () => saveToCloud(user.uid);    // plug into persist()
-      refreshSettingsUI();
-      // Google accounts have no PIN — hide that section of settings
-      document.getElementById('pinSection').style.display = 'none';
-      loginPage.classList.add('off');
-      render();
-      startTutorial();
-    }
-
-    googleBtn.addEventListener('click', async () => {
-      try {
-        const provider = new authMod.GoogleAuthProvider();
-        const result = await authMod.signInWithPopup(auth, provider);
-        enterCloudApp(result.user);
-      } catch (e) {
-        loginMsg.textContent = 'Google sign-in failed: ' + (e.code || e.message);
-      }
-    });
-
-    // already signed in from last time? go straight in
-    authMod.onAuthStateChanged(auth, (user) => {
-      if (user && !cloudSave) enterCloudApp(user);
-    });
-  } catch (e) {
-    // Firebase couldn't load (blocked network, typo in config...)
-    document.getElementById('storageNote').textContent =
-      'Could not reach Google services here — PIN accounts still work fine.';
-  }
-}
-// ------------------------------------------------------------
-// PART 10: SETTINGS + ALARMS ⏰
-//
-// The alarm sound is GENERATED BY CODE using the Web Audio API —
-// no sound files needed. An oscillator makes a tone at a
-// frequency (Hz); we switch it on and off in patterns to make
-// beeps, chimes and sirens.
-//
-// The alarm engine checks the clock every 15 seconds: any task
-// due today at a set time, or any activity scheduled today,
-// fires an alarm "before" minutes early. Each one fires ONCE
-// per day (we remember fired ones in a Set), and Snooze pushes
-// it 5 minutes into the future.
-// ------------------------------------------------------------
-const settingsPage = document.getElementById('settingsPage');
-const alarmOverlay = document.getElementById('alarmOverlay');
-
-// --- sound generation ---
-let audioCtx = null;
-function getAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
-}
-// play one tone: frequency (Hz), start delay (s), length (s)
-function tone(freq, delay, len, wave) {
-  const ctx = getAudio();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = wave || 'square';
-  osc.frequency.value = freq;
-  gain.gain.value = alarmCfg.volume * 0.5;
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.start(ctx.currentTime + delay);
-  osc.stop(ctx.currentTime + delay + len);
-}
-// one round of the chosen alarm sound
-function playAlarmPattern() {
-  if (alarmCfg.sound === 'chime') {
-    tone(523, 0, 0.25, 'sine'); tone(659, 0.25, 0.25, 'sine'); tone(784, 0.5, 0.45, 'sine');
-  } else if (alarmCfg.sound === 'siren') {
-    tone(600, 0, 0.4, 'sawtooth'); tone(900, 0.4, 0.4, 'sawtooth');
-  } else { // beep
-    tone(880, 0, 0.15); tone(880, 0.3, 0.15); tone(880, 0.6, 0.15);
-  }
-}
-
-// --- the alarm overlay ---
-let alarmLoop = null;
-let activeAlarmKey = null;
-const firedAlarms = new Set();       // keys that already rang today
-const snoozedUntil = {};             // key → timestamp to ring again
-
-function showAlarm(title, sub, key) {
-  activeAlarmKey = key;
-  document.getElementById('alarmTitle').textContent = title;
-  document.getElementById('alarmSub').textContent = sub;
-  alarmOverlay.classList.add('on');
-  playAlarmPattern();
-  alarmLoop = setInterval(playAlarmPattern, 1400);  // keep ringing
-}
-function stopAlarm() {
-  alarmOverlay.classList.remove('on');
-  if (alarmLoop) { clearInterval(alarmLoop); alarmLoop = null; }
-}
-document.getElementById('alarmDismiss').addEventListener('click', () => {
-  firedAlarms.add(activeAlarmKey);   // done — won't ring again today
-  stopAlarm();
-});
-document.getElementById('alarmSnooze').addEventListener('click', () => {
-  snoozedUntil[activeAlarmKey] = Date.now() + 5 * 60 * 1000;  // +5 minutes
-  stopAlarm();
-});
-
-// --- the engine: is it time for anything? ---
-function toMinutes(hhmm) {           // "18:30" → 1110
-  const parts = hhmm.split(':');
-  return Number(parts[0]) * 60 + Number(parts[1]);
-}
-function checkAlarms() {
-  if (!alarmCfg.enabled) return;
-  if (!currentUser && !cloudSave) return;          // not logged in
-  if (alarmOverlay.classList.contains('on')) return; // one at a time
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
-  const today = todayKey();
-
-  const candidates = [];
-  for (const t of tasks) {
-    if (!t.done && t.due === today && t.time) {
-      candidates.push({ key: 'task-' + t.id + '-' + today, min: toMinutes(t.time),
-        title: t.title, sub: 'Due at ' + t.time });
-    }
-  }
-  for (const a of activities) {
-    if (a.day === todayName() && a.time) {
-      candidates.push({ key: 'act-' + a.id + '-' + today, min: toMinutes(a.time),
-        title: a.name, sub: 'Starts at ' + a.time });
-    }
-  }
-
-  for (const c of candidates) {
-    if (firedAlarms.has(c.key)) continue;                     // already handled
-    if (snoozedUntil[c.key] && Date.now() < snoozedUntil[c.key]) continue; // snoozing
-    const ringAt = c.min - alarmCfg.before;
-    // ring from "before-time" until 15 min after the real time
-    // (so opening the app a little late still reminds you)
-    if (nowMin >= ringAt && nowMin <= c.min + 15) {
-      delete snoozedUntil[c.key];
-      showAlarm('⏰ ' + c.title, c.sub, c.key);
-      return;                                                  // one alarm per check
-    }
-  }
-}
-setInterval(checkAlarms, 15000);     // look at the clock every 15 seconds
-
-// --- settings open/close + controls ---
-function refreshSettingsUI() {
-  document.getElementById('alarmEnabled').checked = alarmCfg.enabled;
-  document.getElementById('alarmSound').value = alarmCfg.sound;
-  document.getElementById('alarmVolume').value = alarmCfg.volume * 100;
-  document.getElementById('alarmBefore').value = alarmCfg.before;
-  document.getElementById('alarmBeforeOut').textContent = alarmCfg.before + ' min';
-}
-document.getElementById('settingsBtn').addEventListener('click', () => {
-  refreshSettingsUI();
-  settingsPage.classList.add('on');
-});
-document.getElementById('closeSettings').addEventListener('click', () => {
-  settingsPage.classList.remove('on');
-});
-document.getElementById('alarmEnabled').addEventListener('change', (e) => {
-  alarmCfg.enabled = e.target.checked; persist();
-});
-document.getElementById('alarmSound').addEventListener('change', (e) => {
-  alarmCfg.sound = e.target.value; persist();
-});
-document.getElementById('alarmVolume').addEventListener('input', (e) => {
-  alarmCfg.volume = Number(e.target.value) / 100; persist();
-});
-document.getElementById('alarmBefore').addEventListener('input', (e) => {
-  alarmCfg.before = Number(e.target.value);
-  document.getElementById('alarmBeforeOut').textContent = alarmCfg.before + ' min';
-  persist();
-});
-document.getElementById('testAlarmBtn').addEventListener('click', playAlarmPattern);
-
-// --- change PIN (PIN accounts only) ---
-document.getElementById('changePinBtn').addEventListener('click', async () => {
-  const pinMsg = document.getElementById('pinMsg');
-  if (!currentUser) return;
-  const users = getUsers();
-  const cur = document.getElementById('curPin').value;
-  const next = document.getElementById('newPin').value;
-  const u = users[currentUser];
-  const curHash = await hashPin(cur);
-  const curOk = u.pinHash ? (u.pinHash === curHash) : (u.pin === cur);
-  if (!curOk) {
-    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'Current PIN is wrong.'; return;
-  }
-  if (next.length < 4) {
-    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'New PIN needs 4+ characters.'; return;
-  }
-  u.pinHash = await hashPin(next);
-  delete u.pin;                       // never keep the readable version
-  saveUsers(users);
-  document.getElementById('curPin').value = '';
-  document.getElementById('newPin').value = '';
-  pinMsg.style.color = '#9be8b7'; pinMsg.textContent = 'PIN changed ✓';
-});
-
-initCloud();
 
 // register the service worker (the PWA helper) — safely, as always:
 // if it's not supported or the file is missing, the app doesn't care

@@ -375,7 +375,43 @@
     <button data-page="today" class="active">Today</button>
     <button data-page="week">Schedule</button>
     <button data-page="tasks">Tasks</button>
+    <button data-page="parent">Parent</button>
   </nav>
+
+  <!-- ===== PAGE: PARENT (parental controls) ===== -->
+  <div class="page" id="page-parent">
+    <h2>👨‍👩‍👦 Parental Controls</h2>
+    <div id="parentOff">
+      <p style="font-size:12px;color:#8b92ad;margin-bottom:6px;">
+        A parent creates a password here. While controls are ON, the
+        Shop stays locked each day until ALL of today's due tasks are
+        done — fun becomes the reward for finishing the work.
+      </p>
+      <div class="setRow"><input id="parentNewPass" type="password" placeholder="Create parent password (6+ characters)" maxlength="40" style="flex:1"></div>
+      <div class="setRow"><input id="parentEmail" type="email" placeholder="Parent email (optional — for reports)" maxlength="60" style="flex:1"></div>
+      <div class="setRow">
+        <label style="flex:1;font-size:12px;color:#cdd3ea;">📸 Require photo proof to complete tasks</label>
+        <input type="checkbox" id="parentPhotoChk" style="width:20px;height:20px;">
+      </div>
+      <div class="setRow"><button class="smallBtn" id="parentEnableBtn" style="flex:1;background:#c98a2e;">Turn ON parental controls</button></div>
+    </div>
+    <div id="parentOn" style="display:none;">
+      <p style="font-size:12px;color:#9be8b7;margin-bottom:6px;">
+        Parental controls are ON 🔒 — the Shop unlocks each day once
+        every task due today is completed.
+      </p>
+      <p id="parentPhotoStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
+      <p id="parentEmailStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
+      <div class="setRow"><button class="smallBtn" id="parentReportBtn" style="flex:1">📊 Progress report</button></div>
+      <div class="setRow"><button class="smallBtn" id="emailReportBtn" style="flex:1;background:#c98a2e;">📧 Email report to parent</button></div>
+      <div id="parentReport" style="font-size:12px;color:#cdd3ea;line-height:1.5;"></div>
+      <div class="setRow">
+        <input id="parentDisablePass" type="password" placeholder="Parent password" maxlength="40" style="flex:1">
+        <button class="smallBtn" id="parentDisableBtn" style="background:#7c2334;">Turn OFF</button>
+      </div>
+    </div>
+    <div id="parentMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;"></div>
+  </div>
 
   <!-- ===== PAGE 4: THE SHOP ===== -->
   <div class="page" id="page-shop">
@@ -462,35 +498,6 @@
     <div class="setRow">
       <button class="smallBtn" id="importBackupBtn" style="flex:1;background:#7846dc;">⬇ Import latest backup</button>
     </div>
-
-    <h2>👨‍👩‍👦 Parental Controls</h2>
-    <div id="parentOff">
-      <p style="font-size:12px;color:#8b92ad;margin-bottom:6px;">
-        A parent creates a password here. While controls are ON, the
-        Shop stays locked each day until ALL of today's due tasks are
-        done — fun becomes the reward for finishing the work.
-      </p>
-      <div class="setRow"><input id="parentNewPass" type="password" placeholder="Create parent password (6+ characters)" maxlength="40" style="flex:1"></div>
-      <div class="setRow">
-        <label style="flex:1;font-size:12px;color:#cdd3ea;">📸 Require photo proof to complete tasks</label>
-        <input type="checkbox" id="parentPhotoChk" style="width:20px;height:20px;">
-      </div>
-      <div class="setRow"><button class="smallBtn" id="parentEnableBtn" style="flex:1;background:#c98a2e;">Turn ON parental controls</button></div>
-    </div>
-    <div id="parentOn" style="display:none;">
-      <p style="font-size:12px;color:#9be8b7;margin-bottom:6px;">
-        Parental controls are ON 🔒 — the Shop unlocks each day once
-        every task due today is completed.
-      </p>
-      <p id="parentPhotoStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
-      <div class="setRow"><button class="smallBtn" id="parentReportBtn" style="flex:1">📊 Progress report</button></div>
-      <div id="parentReport" style="font-size:12px;color:#cdd3ea;line-height:1.5;"></div>
-      <div class="setRow">
-        <input id="parentDisablePass" type="password" placeholder="Parent password" maxlength="40" style="flex:1">
-        <button class="smallBtn" id="parentDisableBtn" style="background:#7c2334;">Turn OFF</button>
-      </div>
-    </div>
-    <div id="parentMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;"></div>
 
     <!-- dev-only panel, hidden for normal users -->
     <div id="devSection" style="display:none;">
@@ -699,6 +706,17 @@ function render() {
   document.getElementById('coinLine').textContent = currentUser
     ? '🪙 ' + game.coins + '  ·  🔥 ' + game.streak + '-day streak' : '';
   renderShop();
+  // Parent tab: show setup view or active view
+  document.getElementById('parentOff').style.display = parental ? 'none' : 'block';
+  document.getElementById('parentOn').style.display = parental ? 'block' : 'none';
+  document.getElementById('parentPhotoStatus').textContent =
+    parental && parental.photoProof
+      ? '📸 Photo proof is required to complete tasks.'
+      : (parental ? 'Photo proof: not required.' : '');
+  document.getElementById('parentEmailStatus').textContent =
+    parental ? (parental.email ? '📧 Linked email: ' + parental.email : 'No email linked.') : '';
+  document.getElementById('emailReportBtn').style.display =
+    (parental && parental.email) ? 'block' : 'none';
 
   // ---- TODAY page ----
   const todays = activities
@@ -1332,15 +1350,6 @@ function refreshSettingsUI() {
   document.getElementById('ringStatus').textContent = game.customSound
     ? 'Custom ringtone loaded ✓ (pick "My Ringtone 🎧" as the alarm sound)'
     : 'Pick an audio file to use as your alarm.';
-  // parental controls section: show setup or active view
-  document.getElementById('parentOff').style.display = parental ? 'none' : 'block';
-  document.getElementById('parentOn').style.display = parental ? 'block' : 'none';
-  document.getElementById('parentPhotoStatus').textContent =
-    parental && parental.photoProof
-      ? '📸 Photo proof is required to complete tasks.'
-      : (parental ? 'Photo proof: not required.' : '');
-  document.getElementById('parentReport').textContent = '';
-  document.getElementById('parentMsg').textContent = '';
   // show what the latest backup holds (written when an account logs out)
   const info = document.getElementById('lastBackupInfo');
   const importBtn = document.getElementById('importBackupBtn');
@@ -1659,10 +1668,17 @@ document.getElementById('parentEnableBtn').addEventListener('click', async () =>
   const msg = document.getElementById('parentMsg');
   const pass = document.getElementById('parentNewPass').value;
   if (pass.length < 6) { msg.textContent = 'Parent password needs 6+ characters.'; return; }
+  // email is optional — but if one was typed, it must LOOK like an email
+  const email = document.getElementById('parentEmail').value.trim();
+  if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+    msg.textContent = 'That email doesn\'t look right — check it?'; return;
+  }
   parental = {
     hash: await hashPin(pass),
     photoProof: document.getElementById('parentPhotoChk').checked,
+    email: email || null,
   };
+  document.getElementById('parentEmail').value = '';
   document.getElementById('parentNewPass').value = '';
   refreshSettingsUI();
   render();                                   // saves + applies the shop lock
@@ -1684,14 +1700,41 @@ document.getElementById('parentDisableBtn').addEventListener('click', async () =
   msg.textContent = 'Parental controls turned off.';
 });
 
-document.getElementById('parentReportBtn').addEventListener('click', () => {
+// one function builds the report text — the on-screen view AND the
+// email both use it. One source of truth, two outputs.
+function buildReportText() {
   const done = tasks.filter(t => t.done).length;
   const open = tasks.filter(t => !t.done).length;
   const overdue = tasks.filter(t => !t.done && t.due < todayKey()).length;
-  document.getElementById('parentReport').textContent =
-    '📊 Tasks completed: ' + done + ' · Still to do: ' + open
-    + ' · Overdue: ' + overdue + ' · Login streak: ' + game.streak + ' days'
-    + ' · Due today, not done: ' + tasksDueTodayLeft();
+  let text = 'My Planner — progress report for "' + (currentUser || 'account') + '"\n'
+    + new Date().toLocaleString() + '\n\n'
+    + 'Tasks completed: ' + done + '\n'
+    + 'Still to do: ' + open + '\n'
+    + 'Overdue: ' + overdue + '\n'
+    + 'Due today, not done: ' + tasksDueTodayLeft() + '\n'
+    + 'Login streak: ' + game.streak + ' days\n';
+  const openTasks = tasks.filter(t => !t.done);
+  if (openTasks.length) {
+    text += '\nOpen tasks:\n';
+    for (const t of openTasks) {
+      text += ' - ' + t.title + ' (due ' + t.due + (t.time ? ' ' + t.time : '') + ')\n';
+    }
+  }
+  return text;
+}
+
+document.getElementById('parentReportBtn').addEventListener('click', () => {
+  document.getElementById('parentReport').textContent = '📊 ' + buildReportText();
+});
+
+// opens the mail app with the report pre-written and pre-addressed.
+// (A static app can't SEND mail itself — that needs a server — but
+// mailto: hands everything to the real mail app, one tap from Send.)
+document.getElementById('emailReportBtn').addEventListener('click', () => {
+  if (!parental || !parental.email) return;
+  window.location.href = 'mailto:' + parental.email
+    + '?subject=' + encodeURIComponent('My Planner — progress report')
+    + '&body=' + encodeURIComponent(buildReportText());
 });
 
 // the Dev Panel: visible only to dev accounts, and locked behind

@@ -351,8 +351,8 @@
 
     <div id="pinSection">
       <h2>🔑 Change PIN</h2>
-      <div class="setRow"><input id="curPin" type="password" placeholder="Current PIN" style="flex:1"></div>
-      <div class="setRow"><input id="newPin" type="password" placeholder="New PIN (4+ characters)" style="flex:1"></div>
+      <div class="setRow"><input id="curPin" type="password" placeholder="Current PIN" maxlength="40" style="flex:1"></div>
+      <div class="setRow"><input id="newPin" type="password" placeholder="New PIN (4+ characters)" maxlength="40" style="flex:1"></div>
       <div class="setRow">
         <div id="pinMsg" style="flex:1"></div>
         <button class="smallBtn" id="changePinBtn">Change PIN</button>
@@ -387,7 +387,7 @@
     <h1>📋 My Planner</h1>
     <div class="tag">Your schedule. Your tasks. Your app.</div>
     <input id="loginName" placeholder="Username" maxlength="16" autocomplete="off">
-    <input id="loginPin" type="password" placeholder="PIN (4+ digits)" maxlength="12">
+    <input id="loginPin" type="password" placeholder="PIN (4+ characters)" maxlength="40">
     <div id="loginMsg"></div>
     <button id="loginBtn">Log in</button>
     <button id="signupBtn">Create account</button>

@@ -47,6 +47,45 @@
              width: 30px; height: 30px; border-radius: 50%;
              font-weight: 800; font-size: 15px; cursor: pointer; }
   #dateLine { font-size: 13px; color: #8b92ad; margin-top: 2px; }
+  #coinLine { font-size: 13px; color: #ffd54a; font-weight: 800; margin-top: 3px; }
+
+  /* ===== shop ===== */
+  #shopBalance { font-size: 20px; font-weight: 800; color: #ffd54a; margin-top: 8px; }
+  .shopItem {
+    background: #1c2138; border-radius: 12px; padding: 12px 14px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+  }
+  .shopItem .grow { flex: 1; }
+  .shopItem .name { font-weight: 800; font-size: 15px; }
+  .shopItem .desc { font-size: 12px; color: #8b92ad; margin-top: 2px; }
+  .shopBtn { border: none; border-radius: 9px; padding: 9px 14px;
+             font-family: inherit; font-weight: 800; font-size: 12px;
+             cursor: pointer; white-space: nowrap; }
+  .shopBtn.buy { background: #2e8cdc; color: white; }
+  .shopBtn.cant { background: #262b44; color: #566; cursor: default; }
+  .shopBtn.equip { background: #50aa5a; color: white; }
+  .shopBtn.equipped { background: #1e4d33; color: #9be8b7; cursor: default; }
+
+  /* ===== daily reward popup ===== */
+  #rewardOverlay {
+    position: absolute; inset: 0; z-index: 75;
+    background: rgba(8, 12, 8, 0.88);
+    display: none; flex-direction: column;
+    justify-content: center; align-items: center; gap: 8px;
+  }
+  #rewardOverlay.on { display: flex; }
+  #rewardIcon { font-size: 64px; animation: coinPop 0.6s; }
+  @keyframes coinPop {
+    0%   { transform: scale(0.2) rotate(-30deg); }
+    70%  { transform: scale(1.25) rotate(8deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  #rewardTitle { font-size: 24px; font-weight: 800; color: #ffd54a; }
+  #rewardSub { font-size: 14px; color: #cdd3ea; }
+  #rewardClaim { border: none; border-radius: 12px; padding: 12px 34px;
+                 margin-top: 8px; background: #ffd54a; color: #1a1a2a;
+                 font-family: inherit; font-weight: 800; font-size: 16px;
+                 cursor: pointer; }
 
   nav {
     display: flex; border-top: 1px solid #262b44;
@@ -187,7 +226,7 @@
   #signupBtn { background: #262b44; color: #7dc4ff; }
   #loginMsg { font-size: 13px; min-height: 18px; color: #ffb4c0; text-align: center; }
   #storageNote { font-size: 11px; color: #566; text-align: center; max-width: 280px; }
-  #settingsBtn { background: #262b44; border: none; color: #8b92ad;
+  #settingsBtn, #shopBtn { background: #262b44; border: none; color: #8b92ad;
                  width: 30px; height: 30px; border-radius: 50%;
                  font-size: 15px; cursor: pointer; margin-left: 6px; }
 
@@ -251,9 +290,11 @@
     <div>
       <h1>📋 My Planner</h1>
       <div id="dateLine"></div>
+      <div id="coinLine"></div>
     </div>
     <div>
       <button id="helpBtn" title="Replay the tour">?</button>
+      <button id="shopBtn" title="Shop">🛒</button>
       <button id="settingsBtn" title="Settings">⚙</button>
     </div>
   </header>
@@ -315,6 +356,23 @@
     <button data-page="tasks">Tasks</button>
   </nav>
 
+  <!-- ===== PAGE 4: THE SHOP ===== -->
+  <div class="page" id="page-shop">
+    <div id="shopBalance"></div>
+    <p style="font-size:12px;color:#8b92ad;margin-bottom:10px;">
+      Log in every day to earn 🪙 Plan Coins. Keep the streak alive!
+    </p>
+    <div id="shopList"></div>
+  </div>
+
+  <!-- ===== DAILY REWARD popup ===== -->
+  <div id="rewardOverlay">
+    <div id="rewardIcon">🪙</div>
+    <div id="rewardTitle"></div>
+    <div id="rewardSub"></div>
+    <button id="rewardClaim">Claim!</button>
+  </div>
+
   <!-- ===== SETTINGS (opens over everything) ===== -->
   <div id="settingsPage">
     <div class="setHead">
@@ -348,6 +406,11 @@
       <label>Try it</label>
       <button class="smallBtn" id="testAlarmBtn">Test alarm 🔔</button>
     </div>
+    <div class="setRow">
+      <label>My own ringtone</label>
+      <input type="file" id="ringFile" accept="audio/*" style="flex:1.4;font-size:11px;">
+    </div>
+    <div class="setRow"><div id="ringStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div></div>
 
     <div id="pinSection">
       <h2>🔑 Change PIN</h2>
@@ -368,6 +431,21 @@
     <div class="setRow">
       <button class="smallBtn" id="copyBtn">Copy backup</button>
       <button class="smallBtn" id="restoreBtn" style="background:#50aa5a;">Restore from the box</button>
+    </div>
+
+    <!-- dev-only panel, hidden for normal users -->
+    <div id="devSection" style="display:none;">
+      <h2>🛠 Dev Panel</h2>
+      <div class="setRow">
+        <input id="devPass" type="password" placeholder="Dev password" style="flex:1">
+        <button class="smallBtn" id="devOpenBtn">Unlock</button>
+      </div>
+      <div id="devMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;"></div>
+      <div id="devTools" style="display:none;">
+        <div class="setRow"><button class="smallBtn" id="devUnlockBtn" style="flex:1">🔓 Unlock ALL shop items</button></div>
+        <div class="setRow"><button class="smallBtn" id="devCoinsBtn" style="flex:1">🪙 +500 coins</button></div>
+        <div class="setRow"><button class="smallBtn" id="devResetBtn" style="flex:1;background:#7c2334;">♻ Reset my purchases</button></div>
+      </div>
     </div>
 
     <button id="logoutBtn">Log out</button>
@@ -416,6 +494,8 @@
 // ------------------------------------------------------------
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const COLORS = ['#7dc4ff', '#9be8b7', '#ffd54a', '#ff8cb4', '#c88cff', '#ffab70'];
+// unlocked by buying the Neon Color Pack in the shop
+const EXTRA_COLORS = ['#39ff88', '#ff3d81', '#00e5ff'];
 
 // sample data so the app isn't empty — replace with YOUR real life!
 let activities = [
@@ -430,6 +510,15 @@ let tasks = [
 ];
 let nextId = 10;
 let pickedColor = COLORS[0];
+
+// the reward-game state: coins, streak, and what you've bought.
+// Lives inside each account's saved data like everything else.
+function defaultGame() {
+  // new players start with 100 coins — a welcome gift so the shop
+  // feels alive from day one instead of weeks away
+  return { coins: 100, streak: 0, lastLogin: '', owned: {}, theme: 'ocean' };
+}
+let game = defaultGame();
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -544,6 +633,9 @@ function render() {
   document.getElementById('dateLine').textContent =
     todayName() + ', ' + new Date().toLocaleDateString()
     + (isDevUser ? '  ·  🛠 DEV MODE' : '');
+  document.getElementById('coinLine').textContent = currentUser
+    ? '🪙 ' + game.coins + '  ·  🔥 ' + game.streak + '-day streak' : '';
+  renderShop();
 
   // ---- TODAY page ----
   const todays = activities
@@ -694,18 +786,25 @@ for (const btn of document.querySelectorAll('nav button')) {
 document.getElementById('activityDay').innerHTML =
   DAYS.map(d => '<option>' + d + '</option>').join('');
 const colorRow = document.getElementById('colorRow');
-for (const col of COLORS) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.style.background = col;
-  if (col === pickedColor) b.classList.add('picked');
-  b.addEventListener('click', () => {
-    pickedColor = col;
-    colorRow.querySelectorAll('button').forEach(x => x.classList.remove('picked'));
-    b.classList.add('picked');
-  });
-  colorRow.appendChild(b);
+// rebuilt whenever the palette can change (login, buying the color pack)
+function buildColorRow() {
+  colorRow.innerHTML = '';
+  const palette = COLORS.concat(game.owned.colors_pack ? EXTRA_COLORS : []);
+  if (!palette.includes(pickedColor)) pickedColor = palette[0];
+  for (const col of palette) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.style.background = col;
+    if (col === pickedColor) b.classList.add('picked');
+    b.addEventListener('click', () => {
+      pickedColor = col;
+      colorRow.querySelectorAll('button').forEach(x => x.classList.remove('picked'));
+      b.classList.add('picked');
+    });
+    colorRow.appendChild(b);
+  }
 }
+buildColorRow();
 // ------------------------------------------------------------
 // PART 6: THE DUE-DATE SLIDERS
 // Three range inputs = day, month, year. The clever bits:
@@ -889,7 +988,7 @@ function persist() {
   if (!currentUser) return;
   const users = getUsers();
   if (!users[currentUser]) return;
-  users[currentUser].data = { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg };
+  users[currentUser].data = { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game };
   saveUsers(users);
 }
 
@@ -933,12 +1032,18 @@ function enterApp(username, firstTime) {
     tasks = saved.tasks;
     nextId = saved.nextId;
     if (saved.alarm) alarmCfg = saved.alarm;
+    // merge with defaults so old accounts get the new fields too
+    game = Object.assign(defaultGame(), saved.game || {});
+  } else {
+    game = defaultGame();
   }
+  applyTheme(game.theme);
+  buildColorRow();
   refreshSettingsUI();
   document.getElementById('pinSection').style.display = 'block';
   loginPage.classList.add('off');
-  document.getElementById('dateLine').textContent = '';
   render();
+  dailyReward();                   // 🪙 today's login reward (once per day)
   if (firstTime) {                 // only brand-new users get the tour
     startTutorial();
     users[username].seenTut = true;
@@ -1012,6 +1117,363 @@ if (!storageOK) {
     'Note: storage is blocked in this preview, so accounts last only while the app is open. Open the file in your own browser and everything saves for real.';
 }
 
+
+// ------------------------------------------------------------
+// PART 10: SETTINGS + ALARMS ⏰
+// The alarm sound is GENERATED BY CODE with the Web Audio API —
+// an oscillator sings a frequency (Hz); we pulse it in patterns.
+// The engine checks the clock every 15s; each alarm fires once
+// per day, and Snooze pushes it 5 minutes into the future.
+// ------------------------------------------------------------
+const settingsPage = document.getElementById('settingsPage');
+const alarmOverlay = document.getElementById('alarmOverlay');
+
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function tone(freq, delay, len, wave) {
+  const ctx = getAudio();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = wave || 'square';
+  osc.frequency.value = freq;
+  gain.gain.value = alarmCfg.volume * 0.5;
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(ctx.currentTime + delay);
+  osc.stop(ctx.currentTime + delay + len);
+}
+function playAlarmPattern() {
+  if (alarmCfg.sound === 'chime') {
+    tone(523, 0, 0.25, 'sine'); tone(659, 0.25, 0.25, 'sine'); tone(784, 0.5, 0.45, 'sine');
+  } else if (alarmCfg.sound === 'siren') {
+    tone(600, 0, 0.4, 'sawtooth'); tone(900, 0.4, 0.4, 'sawtooth');
+  } else if (alarmCfg.sound === 'melody') { // shop unlock 🎵
+    tone(659, 0, 0.18, 'sine'); tone(784, 0.2, 0.18, 'sine');
+    tone(880, 0.4, 0.18, 'sine'); tone(1047, 0.6, 0.4, 'sine');
+  } else if (alarmCfg.sound === 'retro') { // shop unlock 🎮
+    tone(392, 0, 0.09, 'square'); tone(523, 0.1, 0.09, 'square');
+    tone(659, 0.2, 0.09, 'square'); tone(784, 0.3, 0.09, 'square');
+    tone(1047, 0.4, 0.25, 'square');
+  } else if (alarmCfg.sound === 'clock') { // shop unlock ⏰
+    for (let i = 0; i < 6; i++) tone(1200, i * 0.09, 0.05, 'triangle');
+  } else if (alarmCfg.sound === 'custom' && game.customSound) { // your own file!
+    if (!customAudio || customAudio.src !== game.customSound) {
+      customAudio = new Audio(game.customSound);
+    }
+    customAudio.volume = alarmCfg.volume;
+    if (customAudio.paused) customAudio.play().catch(() => {});
+  } else { // beep
+    tone(880, 0, 0.15); tone(880, 0.3, 0.15); tone(880, 0.6, 0.15);
+  }
+}
+let customAudio = null;   // holds your uploaded ringtone while playing
+
+let alarmLoop = null;
+let activeAlarmKey = null;
+const firedAlarms = new Set();
+const snoozedUntil = {};
+
+function showAlarm(title, sub, key) {
+  activeAlarmKey = key;
+  document.getElementById('alarmTitle').textContent = title;
+  document.getElementById('alarmSub').textContent = sub;
+  alarmOverlay.classList.add('on');
+  playAlarmPattern();
+  alarmLoop = setInterval(playAlarmPattern, 1400);
+}
+function stopAlarm() {
+  alarmOverlay.classList.remove('on');
+  if (alarmLoop) { clearInterval(alarmLoop); alarmLoop = null; }
+  if (customAudio) { customAudio.pause(); customAudio.currentTime = 0; }
+}
+document.getElementById('alarmDismiss').addEventListener('click', () => {
+  firedAlarms.add(activeAlarmKey);
+  stopAlarm();
+});
+document.getElementById('alarmSnooze').addEventListener('click', () => {
+  snoozedUntil[activeAlarmKey] = Date.now() + 5 * 60 * 1000;
+  stopAlarm();
+});
+
+function toMinutes(hhmm) {
+  const parts = hhmm.split(':');
+  return Number(parts[0]) * 60 + Number(parts[1]);
+}
+function checkAlarms() {
+  if (!alarmCfg.enabled) return;
+  if (!currentUser) return;
+  if (alarmOverlay.classList.contains('on')) return;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const today = todayKey();
+  const candidates = [];
+  for (const t of tasks) {
+    if (!t.done && t.due === today && t.time) {
+      candidates.push({ key: 'task-' + t.id + '-' + today, min: toMinutes(t.time),
+        title: t.title, sub: 'Due at ' + t.time });
+    }
+  }
+  for (const a of activities) {
+    if (a.day === todayName() && a.time) {
+      candidates.push({ key: 'act-' + a.id + '-' + today, min: toMinutes(a.time),
+        title: a.name, sub: 'Starts at ' + a.time });
+    }
+  }
+  for (const c of candidates) {
+    if (firedAlarms.has(c.key)) continue;
+    if (snoozedUntil[c.key] && Date.now() < snoozedUntil[c.key]) continue;
+    const ringAt = c.min - alarmCfg.before;
+    if (nowMin >= ringAt && nowMin <= c.min + 15) {
+      delete snoozedUntil[c.key];
+      showAlarm('⏰ ' + c.title, c.sub, c.key);
+      return;
+    }
+  }
+}
+setInterval(checkAlarms, 15000);
+
+function refreshSettingsUI() {
+  document.getElementById('alarmEnabled').checked = alarmCfg.enabled;
+  // sound options you've unlocked in the shop appear automatically
+  const soundSel = document.getElementById('alarmSound');
+  for (const itemId in SOUND_UNLOCKS) {
+    const s = SOUND_UNLOCKS[itemId];
+    if (game.owned[itemId] && !soundSel.querySelector('option[value=' + s.value + ']')) {
+      soundSel.innerHTML += '<option value="' + s.value + '">' + s.label + '</option>';
+    }
+  }
+  // your own uploaded ringtone gets an option too
+  if (game.customSound && !soundSel.querySelector('option[value=custom]')) {
+    soundSel.innerHTML += '<option value="custom">My Ringtone 🎧</option>';
+  }
+  if (!soundSel.querySelector('option[value=' + alarmCfg.sound + ']')) alarmCfg.sound = 'beep';
+  soundSel.value = alarmCfg.sound;
+  document.getElementById('alarmVolume').value = alarmCfg.volume * 100;
+  document.getElementById('alarmBefore').value = alarmCfg.before;
+  document.getElementById('alarmBeforeOut').textContent = alarmCfg.before + ' min';
+  document.getElementById('ringStatus').textContent = game.customSound
+    ? 'Custom ringtone loaded ✓ (pick "My Ringtone 🎧" as the alarm sound)'
+    : 'Pick an audio file to use as your alarm.';
+}
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  refreshSettingsUI();
+  // the Dev Panel section only shows for dev accounts
+  document.getElementById('devSection').style.display = isDevUser ? 'block' : 'none';
+  document.getElementById('devTools').style.display = 'none';   // locked until password
+  document.getElementById('devPass').value = '';
+  document.getElementById('devMsg').textContent = '';
+  settingsPage.classList.add('on');
+});
+document.getElementById('closeSettings').addEventListener('click', () => {
+  settingsPage.classList.remove('on');
+});
+document.getElementById('alarmEnabled').addEventListener('change', (e) => {
+  alarmCfg.enabled = e.target.checked; persist();
+});
+document.getElementById('alarmSound').addEventListener('change', (e) => {
+  alarmCfg.sound = e.target.value; persist();
+});
+document.getElementById('alarmVolume').addEventListener('input', (e) => {
+  alarmCfg.volume = Number(e.target.value) / 100; persist();
+});
+document.getElementById('alarmBefore').addEventListener('input', (e) => {
+  alarmCfg.before = Number(e.target.value);
+  document.getElementById('alarmBeforeOut').textContent = alarmCfg.before + ' min';
+  persist();
+});
+document.getElementById('testAlarmBtn').addEventListener('click', playAlarmPattern);
+
+document.getElementById('changePinBtn').addEventListener('click', async () => {
+  const pinMsg = document.getElementById('pinMsg');
+  if (!currentUser) return;
+  const users = getUsers();
+  const cur = document.getElementById('curPin').value;
+  const next = document.getElementById('newPin').value;
+  const u = users[currentUser];
+  const curHash = await hashPin(cur);
+  const curOk = u.pinHash ? (u.pinHash === curHash) : (u.pin === cur);
+  if (!curOk) {
+    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'Current PIN is wrong.'; return;
+  }
+  if (next.length < 4) {
+    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'New PIN needs 4+ characters.'; return;
+  }
+  u.pinHash = await hashPin(next);
+  delete u.pin;
+  saveUsers(users);
+  document.getElementById('curPin').value = '';
+  document.getElementById('newPin').value = '';
+  pinMsg.style.color = '#9be8b7'; pinMsg.textContent = 'PIN changed ✓';
+});
+
+// ------------------------------------------------------------
+// PART 11: STREAKS, PLAN COINS & THE SHOP 🪙
+// The retention loop: log in daily → earn coins → keep a streak
+// → spend coins on themes, colors, and sounds. Everything lives
+// in the `game` object and rides the same autosave as the rest.
+// ------------------------------------------------------------
+const THEMES = {
+  ocean:  { name: 'Ocean',  bg: 'linear-gradient(180deg, #171b2e, #10131f)', accent: '#7dc4ff' },
+  sunset: { name: 'Sunset', bg: 'linear-gradient(180deg, #2e1726, #1f1013)', accent: '#ff9d6c' },
+  forest: { name: 'Forest', bg: 'linear-gradient(180deg, #14261c, #0c1810)', accent: '#7de8a0' },
+  gold:   { name: 'Midnight Gold', bg: 'linear-gradient(180deg, #262014, #17130a)', accent: '#ffd54a' },
+};
+function applyTheme(id) {
+  const t = THEMES[id] || THEMES.ocean;
+  game.theme = THEMES[id] ? id : 'ocean';
+  document.getElementById('app').style.background = t.bg;
+  document.querySelector('header h1').style.color = t.accent;
+}
+
+const SHOP_ITEMS = [
+  { id: 'theme_sunset', icon: '🌅', name: 'Sunset Theme', desc: 'Warm evening colors', price: 80, kind: 'theme', theme: 'sunset' },
+  { id: 'theme_forest', icon: '🌲', name: 'Forest Theme', desc: 'Deep green calm', price: 80, kind: 'theme', theme: 'forest' },
+  { id: 'theme_gold',   icon: '👑', name: 'Midnight Gold', desc: 'For legendary streaks', price: 150, kind: 'theme', theme: 'gold' },
+  { id: 'colors_pack',  icon: '🎨', name: 'Neon Color Pack', desc: '3 extra activity colors', price: 60, kind: 'perk' },
+  { id: 'sound_melody', icon: '🎵', name: 'Melody Alarm', desc: 'A friendlier wake-up tune', price: 60, kind: 'perk' },
+  { id: 'sound_retro',  icon: '🎮', name: 'Retro Game Alarm', desc: '8-bit power-up energy', price: 60, kind: 'perk' },
+  { id: 'sound_clock',  icon: '⏰', name: 'Classic Bell', desc: 'Old-school alarm clock ring', price: 60, kind: 'perk' },
+];
+// which shop purchases unlock which alarm-sound options
+const SOUND_UNLOCKS = {
+  sound_melody: { value: 'melody', label: 'Melody 🎵' },
+  sound_retro:  { value: 'retro',  label: 'Retro 🎮' },
+  sound_clock:  { value: 'clock',  label: 'Bell ⏰' },
+};
+
+function shopRow(item, ownedFlag) {
+  let btn;
+  if (item.kind === 'theme' && ownedFlag) {
+    btn = game.theme === item.theme
+      ? '<button class="shopBtn equipped">Equipped ✓</button>'
+      : '<button class="shopBtn equip" data-equip="' + item.theme + '">Equip</button>';
+  } else if (ownedFlag) {
+    btn = '<button class="shopBtn equipped">Owned ✓</button>';
+  } else if (game.coins >= item.price) {
+    btn = '<button class="shopBtn buy" data-buy="' + item.id + '">Buy · 🪙 ' + item.price + '</button>';
+  } else {
+    btn = '<button class="shopBtn cant">🪙 ' + item.price + '</button>';
+  }
+  return '<div class="shopItem"><div style="font-size:24px">' + item.icon + '</div>'
+    + '<div class="grow"><div class="name">' + item.name + '</div>'
+    + '<div class="desc">' + item.desc + '</div></div>' + btn + '</div>';
+}
+
+function renderShop() {
+  const list = document.getElementById('shopList');
+  if (!list) return;
+  document.getElementById('shopBalance').textContent = '🪙 ' + game.coins + ' Plan Coins';
+  // the default Ocean theme is always owned, so you can switch back
+  let html = shopRow({ id: 'theme_ocean', icon: '🌊', name: 'Ocean Theme', desc: 'The classic look', price: 0, kind: 'theme', theme: 'ocean' }, true);
+  for (const item of SHOP_ITEMS) html += shopRow(item, game.owned[item.id]);
+  list.innerHTML = html;
+}
+
+// ONE listener on the whole list handles every Buy/Equip button —
+// this is called event delegation (no per-button wiring needed)
+document.getElementById('shopList').addEventListener('click', (e) => {
+  const equipTheme = e.target.dataset.equip;
+  if (equipTheme) { applyTheme(equipTheme); render(); return; }
+  const buyId = e.target.dataset.buy;
+  if (!buyId) return;
+  const item = SHOP_ITEMS.find(i => i.id === buyId);
+  if (!item || game.owned[item.id] || game.coins < item.price) return;
+  game.coins -= item.price;              // pay first, always
+  game.owned[item.id] = true;
+  if (item.kind === 'theme') applyTheme(item.theme);
+  if (item.id === 'colors_pack') buildColorRow();
+  render();                              // updates everything + autosaves
+});
+
+// the daily login reward — once per real day
+function dailyReward() {
+  const today = todayKey();
+  if (game.lastLogin === today) return;              // already claimed
+  // logged in yesterday too? streak grows. Missed a day? back to 1.
+  game.streak = (game.lastLogin === todayPlus(-1)) ? game.streak + 1 : 1;
+  game.lastLogin = today;
+  game.coins += 10;
+  document.getElementById('rewardTitle').textContent = '+10 Plan Coins!';
+  document.getElementById('rewardSub').textContent = '🔥 ' + game.streak + '-day login streak';
+  document.getElementById('rewardOverlay').classList.add('on');
+  render();                                          // shows new balance + saves
+}
+document.getElementById('rewardClaim').addEventListener('click', () => {
+  document.getElementById('rewardOverlay').classList.remove('on');
+});
+
+// header shop button — opens the shop page from anywhere
+document.getElementById('shopBtn').addEventListener('click', () => {
+  settingsPage.classList.remove('on');
+  switchTab('shop');
+});
+
+// ------------------------------------------------------------
+// PART 12: CUSTOM RINGTONE + DEV PANEL 🛠
+// ------------------------------------------------------------
+// pick your own ringtone: FileReader turns the audio file into a
+// data URL (the file AS text) so it can live inside your saved data.
+document.getElementById('ringFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('ringStatus');
+  if (file.size > 2500000) {   // storage drawers are small — keep files short
+    status.textContent = 'Too big! Pick a sound under 2.5 MB (a few seconds is perfect).';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    game.customSound = reader.result;   // the whole sound, stored as text
+    customAudio = null;                 // rebuild the player next play
+    alarmCfg.sound = 'custom';
+    refreshSettingsUI();
+    render();                           // autosaves
+    status.textContent = 'Loaded ✓ — press Test alarm to hear it!';
+  };
+  reader.readAsDataURL(file);
+});
+
+// the Dev Panel: visible only to dev accounts, and still locked
+// behind a password check (verified against YOUR dev hash — so a
+// friend borrowing your logged-in phone can't cheat the shop)
+document.getElementById('devOpenBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('devMsg');
+  if (!isDevUser || !DEV_ACCOUNTS[currentUser]) return;
+  const typed = await hashPin(document.getElementById('devPass').value);
+  if (typed !== DEV_ACCOUNTS[currentUser]) {
+    msg.textContent = 'Wrong dev password.';
+    return;
+  }
+  msg.textContent = '';
+  document.getElementById('devTools').style.display = 'block';
+});
+document.getElementById('devUnlockBtn').addEventListener('click', () => {
+  for (const item of SHOP_ITEMS) game.owned[item.id] = true;
+  buildColorRow();
+  refreshSettingsUI();
+  render();
+  document.getElementById('devMsg').textContent = 'Everything unlocked ✓ (for testing)';
+});
+document.getElementById('devCoinsBtn').addEventListener('click', () => {
+  game.coins += 500;
+  render();
+  document.getElementById('devMsg').textContent = '+500 coins ✓';
+});
+document.getElementById('devResetBtn').addEventListener('click', () => {
+  game.owned = {};
+  game.theme = 'ocean';
+  applyTheme('ocean');
+  buildColorRow();
+  document.getElementById('alarmSound').innerHTML =
+    '<option value="beep">Beep</option><option value="chime">Chime</option><option value="siren">Siren</option>';
+  alarmCfg.sound = 'beep';
+  refreshSettingsUI();
+  render();
+  document.getElementById('devMsg').textContent = 'Purchases reset ✓ — back to a fresh account view';
+});
 
 // register the service worker (the PWA helper) — safely, as always:
 // if it's not supported or the file is missing, the app doesn't care

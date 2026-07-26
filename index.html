@@ -413,12 +413,12 @@
     <div class="setRow"><div id="ringStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div></div>
 
     <div id="pinSection">
-      <h2>🔑 Change PIN</h2>
-      <div class="setRow"><input id="curPin" type="password" placeholder="Current PIN" maxlength="40" style="flex:1"></div>
-      <div class="setRow"><input id="newPin" type="password" placeholder="New PIN (4+ characters)" maxlength="40" style="flex:1"></div>
+      <h2>🔑 Change Password</h2>
+      <div class="setRow"><input id="curPin" type="password" placeholder="Current password" maxlength="40" style="flex:1"></div>
+      <div class="setRow"><input id="newPin" type="password" placeholder="New password (4+ characters)" maxlength="40" style="flex:1"></div>
       <div class="setRow">
         <div id="pinMsg" style="flex:1"></div>
-        <button class="smallBtn" id="changePinBtn">Change PIN</button>
+        <button class="smallBtn" id="changePinBtn">Change Password</button>
       </div>
     </div>
 
@@ -465,7 +465,7 @@
     <h1>📋 My Planner</h1>
     <div class="tag">Your schedule. Your tasks. Your app.</div>
     <input id="loginName" placeholder="Username" maxlength="16" autocomplete="off">
-    <input id="loginPin" type="password" placeholder="PIN (4+ characters)" maxlength="40">
+    <input id="loginPin" type="password" placeholder="Password (4+ characters)" maxlength="40">
     <div id="loginMsg"></div>
     <button id="loginBtn">Log in</button>
     <button id="signupBtn">Create account</button>
@@ -890,7 +890,7 @@ const TUT_STEPS = [
     text: 'Anything you need to finish goes here. Slide the day, month and year, set a time, and watch the "Due:" line update live. Tick the box when it\'s done — overdue tasks turn red.' },
   { page: 'today', target: '#settingsBtn',
     title: '⚙ Settings',
-    text: 'Everything else lives behind this gear: set up alarms for tasks and activities, change your PIN, back up your data, and log out.' },
+    text: 'Everything else lives behind this gear: set up alarms for tasks and activities, change your password, back up your data, and log out.' },
   { page: 'today', target: 'nav button[data-page="today"]',
     title: '🎉 That\'s it!',
     text: 'You\'re ready. Replace the sample data with your real week. And if you ever forget how something works, tap the ? up top to replay this tour.' },
@@ -950,9 +950,9 @@ document.getElementById('helpBtn').addEventListener('click', startTutorial);
 // 1. Some places (like previews) BLOCK the drawer, so every use
 //    is wrapped in try/catch and we fall back to memory-only.
 //    The app must never crash just because storage said no.
-// 2. This is NOT real security — the PIN lives on this device,
-//    unencrypted. It keeps siblings out of your planner; it would
-//    not keep hackers out of a bank. Real logins live on servers.
+// 2. This is NOT bank-grade security — passwords are hashed
+//    (never stored readable), but everything lives on this one
+//    device. Keeps siblings out; real bank logins live on servers.
 // ------------------------------------------------------------
 const USERS_KEY = 'myPlannerUsers';
 let memUsers = {};          // fallback if the storage drawer is blocked
@@ -1025,6 +1025,8 @@ const loginMsg = document.getElementById('loginMsg');
 
 function enterApp(username, firstTime) {
   currentUser = username;
+  // remember the session so closing the app doesn't log you out
+  try { localStorage.setItem('myPlannerSession', username); } catch (e) {}
   const users = getUsers();
   const saved = users[username].data;
   if (saved) {                     // returning user → restore their world
@@ -1057,7 +1059,7 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
   if (name.length < 3) { loginMsg.textContent = 'Username needs 3+ characters.'; return; }
   if (DEV_ACCOUNTS[name]) { loginMsg.textContent = 'That name is reserved for the dev team 🛠'; return; }
   if (hasBadWords(name)) { loginMsg.textContent = 'Pick a cleaner username 😅'; return; }
-  if (pin.length < 4) { loginMsg.textContent = 'PIN needs 4+ characters.'; return; }
+  if (pin.length < 4) { loginMsg.textContent = 'Password needs 4+ characters.'; return; }
   const users = getUsers();
   if (users[name]) { loginMsg.textContent = 'That name is taken — log in instead?'; return; }
   // we store the HASH of the PIN — the PIN itself is never saved
@@ -1074,7 +1076,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
   // dev accounts first: they exist in the CODE, not just this device.
   if (DEV_ACCOUNTS[name]) {
-    if (DEV_ACCOUNTS[name] !== typedHash) { loginMsg.textContent = 'Wrong dev PIN.'; return; }
+    if (DEV_ACCOUNTS[name] !== typedHash) { loginMsg.textContent = 'Wrong password.'; return; }
     if (!users[name]) {
       users[name] = { pinHash: typedHash, data: null, seenTut: true }; // devs skip the tour
       saveUsers(users);
@@ -1096,14 +1098,15 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
     ok = u.pin === pin;
     if (ok) { u.pinHash = typedHash; delete u.pin; saveUsers(users); }
   }
-  if (!ok) { loginMsg.textContent = 'Wrong PIN. Try again.'; return; }
+  if (!ok) { loginMsg.textContent = 'Wrong password. Try again.'; return; }
   enterApp(name, !u.seenTut);
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   persist();                       // save one last time
   currentUser = null;
-  // reset to sample data so the next person doesn't see your stuff
+  // forget the session — logging out should MEAN logged out
+  try { localStorage.removeItem('myPlannerSession'); } catch (e) {}
   location.reload();
 });
 
@@ -1296,17 +1299,17 @@ document.getElementById('changePinBtn').addEventListener('click', async () => {
   const curHash = await hashPin(cur);
   const curOk = u.pinHash ? (u.pinHash === curHash) : (u.pin === cur);
   if (!curOk) {
-    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'Current PIN is wrong.'; return;
+    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'Current password is wrong.'; return;
   }
   if (next.length < 4) {
-    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'New PIN needs 4+ characters.'; return;
+    pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'New password needs 4+ characters.'; return;
   }
   u.pinHash = await hashPin(next);
   delete u.pin;
   saveUsers(users);
   document.getElementById('curPin').value = '';
   document.getElementById('newPin').value = '';
-  pinMsg.style.color = '#9be8b7'; pinMsg.textContent = 'PIN changed ✓';
+  pinMsg.style.color = '#9be8b7'; pinMsg.textContent = 'Password changed ✓';
 });
 
 // ------------------------------------------------------------
@@ -1484,6 +1487,16 @@ if ('serviceWorker' in navigator) {
 }
 
 render();   // paints the app behind the login screen
+
+// STAY LOGGED IN: if a session note was saved last time, skip the
+// login screen entirely and walk straight into that account.
+try {
+  const savedSession = localStorage.getItem('myPlannerSession');
+  if (savedSession && getUsers()[savedSession]) {
+    isDevUser = !!DEV_ACCOUNTS[savedSession];   // restore the DEV badge too
+    enterApp(savedSession, false);
+  }
+} catch (e) { /* storage blocked (previews) — normal login still works */ }
 </script>
 </body>
 </html>

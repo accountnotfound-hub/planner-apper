@@ -952,10 +952,11 @@ function getUsers() {
 }
 function saveUsers(users) {
   if (storageOK) {
-    try { localStorage.setItem(USERS_KEY, JSON.stringify(users)); return; }
-    catch (e) {}
+    try { localStorage.setItem(USERS_KEY, JSON.stringify(users)); return true; }
+    catch (e) { return false; }   // drawer FULL (usually a big ringtone)
   }
   memUsers = users;
+  return true;                    // memory-mode "save" always works
 }
 
 let currentUser = null;
@@ -969,7 +970,16 @@ function persist() {
   const users = getUsers();
   if (!users[currentUser]) return;
   users[currentUser].data = { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game };
-  saveUsers(users);
+  if (!saveUsers(users)) {
+    // the storage drawer is full — almost always a big custom
+    // ringtone. Save everything EXCEPT the ringtone so no tasks
+    // are ever lost, and tell the user honestly.
+    users[currentUser].data.game = Object.assign({}, game, { customSound: null });
+    saveUsers(users);
+    const status = document.getElementById('ringStatus');
+    if (status) status.textContent =
+      '⚠ Ringtone too big to keep saved — it works now, but will be gone next time. Try a shorter clip!';
+  }
 }
 
 // ------------------------------------------------------------
@@ -1430,18 +1440,25 @@ document.getElementById('ringFile').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const status = document.getElementById('ringStatus');
-  if (file.size > 2500000) {   // storage drawers are small — keep files short
-    status.textContent = 'Too big! Pick a sound under 2.5 MB (a few seconds is perfect).';
+  if (file.size > 1500000) {   // storage drawers are small — keep files short
+    status.textContent = 'Too big! Pick a sound under 1.5 MB (a few seconds is perfect).';
+    e.target.value = '';
     return;
   }
   const reader = new FileReader();
   reader.onload = () => {
     game.customSound = reader.result;   // the whole sound, stored as text
-    customAudio = null;                 // rebuild the player next play
+    customAudio = null;                 // force a fresh player for the NEW sound
     alarmCfg.sound = 'custom';
     refreshSettingsUI();
-    render();                           // autosaves
-    status.textContent = 'Loaded ✓ — press Test alarm to hear it!';
+    render();                           // autosaves (with drawer-full safety net)
+    if (!document.getElementById('ringStatus').textContent.startsWith('⚠')) {
+      status.textContent = 'Loaded ✓ — playing a preview...';
+    }
+    playAlarmPattern();                 // instant feedback: HEAR it right away
+    // clear the picker so choosing the SAME file again still works
+    // (browsers skip the change event if the filename didn't change)
+    e.target.value = '';
   };
   reader.readAsDataURL(file);
 });
@@ -1459,6 +1476,7 @@ document.getElementById('importBackupBtn').addEventListener('click', () => {
   nextId = d.nextId || 100;
   if (d.alarm) alarmCfg = d.alarm;
   game = Object.assign(defaultGame(), d.game || {});
+  customAudio = null;   // imported account may have a different ringtone
   applyTheme(game.theme);
   buildColorRow();
   refreshSettingsUI();

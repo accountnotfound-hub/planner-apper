@@ -1436,15 +1436,17 @@ document.getElementById('ringFile').addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
-// the Dev Panel: visible only to dev accounts, and still locked
-// behind a password check (verified against YOUR dev hash — so a
-// friend borrowing your logged-in phone can't cheat the shop)
+// the Dev Panel: visible only to dev accounts, and locked behind
+// ONE shared panel password that is DIFFERENT from every account
+// password. Defense in depth: even a stolen dev login can't open
+// this without the second secret. (Stored as a hash, of course.)
+const DEV_PANEL_HASH = '44ed9ca904ad5846b4c1e47113e67e0d60628fe9293190051ca80762c99afed4';
 document.getElementById('devOpenBtn').addEventListener('click', async () => {
   const msg = document.getElementById('devMsg');
-  if (!isDevUser || !DEV_ACCOUNTS[currentUser]) return;
+  if (!isDevUser) return;
   const typed = await hashPin(document.getElementById('devPass').value);
-  if (typed !== DEV_ACCOUNTS[currentUser]) {
-    msg.textContent = 'Wrong dev password.';
+  if (typed !== DEV_PANEL_HASH) {
+    msg.textContent = 'Wrong dev panel password.';
     return;
   }
   msg.textContent = '';

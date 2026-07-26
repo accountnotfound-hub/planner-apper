@@ -424,17 +424,12 @@
 
     <h2>💾 Backup</h2>
     <p style="font-size:12px;color:#8b92ad;margin-bottom:8px;">
-      Your data as text. Copy it somewhere safe; paste it back and
-      press Restore to reload everything.
+      Backups happen automatically when an account logs out.
+      Import the latest one into this account with one tap.
     </p>
     <div id="lastBackupInfo" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></div>
     <div class="setRow">
       <button class="smallBtn" id="importBackupBtn" style="flex:1;background:#7846dc;">⬇ Import latest backup</button>
-    </div>
-    <textarea id="backupBox"></textarea>
-    <div class="setRow">
-      <button class="smallBtn" id="copyBtn">Copy backup</button>
-      <button class="smallBtn" id="restoreBtn" style="background:#50aa5a;">Restore from the box</button>
     </div>
 
     <!-- dev-only panel, hidden for normal users -->
@@ -680,10 +675,6 @@ function render() {
   document.getElementById('taskActivity').innerHTML =
     activities.map(a => '<option value="' + a.id + '">' + a.name + '</option>').join('');
 
-  // ---- BACKUP page ----
-  document.getElementById('backupBox').value =
-    JSON.stringify({ activities: activities, tasks: tasks, nextId: nextId }, null, 1);
-
   // AUTOSAVE: every render means the data just changed — so we
   // save the logged-in user's data right here. One hook, zero
   // "did I remember to save?" bugs.
@@ -756,21 +747,6 @@ document.getElementById('taskForm').addEventListener('submit', (e) => {
   });
   document.getElementById('taskTitle').value = '';
   render();
-});
-
-document.getElementById('copyBtn').addEventListener('click', () => {
-  const box = document.getElementById('backupBox');
-  box.select();
-  document.execCommand('copy');
-});
-document.getElementById('restoreBtn').addEventListener('click', () => {
-  try {
-    const data = JSON.parse(document.getElementById('backupBox').value);
-    activities = data.activities; tasks = data.tasks; nextId = data.nextId;
-    render();
-  } catch (err) {
-    alert('Hmm, that text is not valid backup data.');
-  }
 });
 
 // ------------------------------------------------------------

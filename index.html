@@ -921,10 +921,23 @@ function persist() {
 // vault. (Dev accounts have no special powers over other users,
 // so the worst a snooper can do is use a planner. Still: change them.)
 // ------------------------------------------------------------
+// These are HASHES of the dev PINs, not the PINs themselves — a
+// hash is a one-way math blender: easy to make from the PIN,
+// impossible to turn back into it. So even though this code is
+// public, nobody can read the actual passwords out of it.
 const DEV_ACCOUNTS = {
-  'dev.acc': 'meowchill@321',     // you, the founder
-  'claude.dev': 'claudeproai@321',  // me, the co-developer 🤝
+  'dev.acc':    '05d005aa719a07cc2ee5023ba1bed88664ac38df319ef1f191fa6f7f3c35336e',
+  'claude.dev': 'c11eeeb5e023a451e408f5f62694fc33783c2e826ca3de8425b2b6ade8579e63',
 };
+
+// the blender: SHA-256, built into every browser. The "salt" is a
+// fixed extra string mixed in so generic hash-lookup tables fail.
+async function hashPin(pin) {
+  const data = new TextEncoder().encode('myplanner-salt-v1' + pin);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
 let isDevUser = false;
 
 const loginPage = document.getElementById('loginPage');
@@ -952,7 +965,7 @@ function enterApp(username, firstTime) {
   }
 }
 
-document.getElementById('signupBtn').addEventListener('click', () => {
+document.getElementById('signupBtn').addEventListener('click', async () => {
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
   if (name.length < 3) { loginMsg.textContent = 'Username needs 3+ characters.'; return; }
@@ -961,23 +974,23 @@ document.getElementById('signupBtn').addEventListener('click', () => {
   if (pin.length < 4) { loginMsg.textContent = 'PIN needs 4+ characters.'; return; }
   const users = getUsers();
   if (users[name]) { loginMsg.textContent = 'That name is taken — log in instead?'; return; }
-  users[name] = { pin: pin, data: null, seenTut: false };
+  // we store the HASH of the PIN — the PIN itself is never saved
+  users[name] = { pinHash: await hashPin(pin), data: null, seenTut: false };
   saveUsers(users);
   enterApp(name, true);
 });
 
-document.getElementById('loginBtn').addEventListener('click', () => {
+document.getElementById('loginBtn').addEventListener('click', async () => {
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
   const users = getUsers();
+  const typedHash = await hashPin(pin);   // blend what they typed...
 
   // dev accounts first: they exist in the CODE, not just this device.
-  // If this device hasn't seen the dev account before, we create its
-  // storage slot on the spot — that's why they work anywhere.
   if (DEV_ACCOUNTS[name]) {
-    if (DEV_ACCOUNTS[name] !== pin) { loginMsg.textContent = 'Wrong dev PIN.'; return; }
+    if (DEV_ACCOUNTS[name] !== typedHash) { loginMsg.textContent = 'Wrong dev PIN.'; return; }
     if (!users[name]) {
-      users[name] = { pin: pin, data: null, seenTut: true }; // devs skip the tour
+      users[name] = { pinHash: typedHash, data: null, seenTut: true }; // devs skip the tour
       saveUsers(users);
     }
     isDevUser = true;
@@ -986,8 +999,19 @@ document.getElementById('loginBtn').addEventListener('click', () => {
   }
 
   if (!users[name]) { loginMsg.textContent = 'No account with that name — create one!'; return; }
-  if (users[name].pin !== pin) { loginMsg.textContent = 'Wrong PIN. Try again.'; return; }
-  enterApp(name, !users[name].seenTut);
+  const u = users[name];
+  // new accounts have pinHash; OLD accounts (made before hashing
+  // existed) still have a plain pin — accept it once, then upgrade
+  // them to a hash on the spot. That's called a MIGRATION.
+  let ok = false;
+  if (u.pinHash) {
+    ok = u.pinHash === typedHash;         // ...and compare the smoothies
+  } else if (u.pin) {
+    ok = u.pin === pin;
+    if (ok) { u.pinHash = typedHash; delete u.pin; saveUsers(users); }
+  }
+  if (!ok) { loginMsg.textContent = 'Wrong PIN. Try again.'; return; }
+  enterApp(name, !u.seenTut);
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -1240,19 +1264,23 @@ document.getElementById('alarmBefore').addEventListener('input', (e) => {
 document.getElementById('testAlarmBtn').addEventListener('click', playAlarmPattern);
 
 // --- change PIN (PIN accounts only) ---
-document.getElementById('changePinBtn').addEventListener('click', () => {
+document.getElementById('changePinBtn').addEventListener('click', async () => {
   const pinMsg = document.getElementById('pinMsg');
   if (!currentUser) return;
   const users = getUsers();
   const cur = document.getElementById('curPin').value;
   const next = document.getElementById('newPin').value;
-  if (users[currentUser].pin !== cur) {
+  const u = users[currentUser];
+  const curHash = await hashPin(cur);
+  const curOk = u.pinHash ? (u.pinHash === curHash) : (u.pin === cur);
+  if (!curOk) {
     pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'Current PIN is wrong.'; return;
   }
   if (next.length < 4) {
     pinMsg.style.color = '#ffb4c0'; pinMsg.textContent = 'New PIN needs 4+ characters.'; return;
   }
-  users[currentUser].pin = next;
+  u.pinHash = await hashPin(next);
+  delete u.pin;                       // never keep the readable version
   saveUsers(users);
   document.getElementById('curPin').value = '';
   document.getElementById('newPin').value = '';

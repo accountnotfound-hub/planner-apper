@@ -427,6 +427,10 @@
       Your data as text. Copy it somewhere safe; paste it back and
       press Restore to reload everything.
     </p>
+    <div id="lastBackupInfo" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></div>
+    <div class="setRow">
+      <button class="smallBtn" id="importBackupBtn" style="flex:1;background:#7846dc;">⬇ Import latest backup</button>
+    </div>
     <textarea id="backupBox"></textarea>
     <div class="setRow">
       <button class="smallBtn" id="copyBtn">Copy backup</button>
@@ -1104,6 +1108,15 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
   persist();                       // save one last time
+  // snapshot this account as "the latest backup" — so the NEXT
+  // account that logs in can import everything with one tap
+  try {
+    localStorage.setItem('myPlannerLastBackup', JSON.stringify({
+      from: currentUser,
+      when: new Date().toLocaleString(),
+      data: { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game },
+    }));
+  } catch (e) {}
   currentUser = null;
   // forget the session — logging out should MEAN logged out
   try { localStorage.removeItem('myPlannerSession'); } catch (e) {}
@@ -1260,6 +1273,24 @@ function refreshSettingsUI() {
   document.getElementById('ringStatus').textContent = game.customSound
     ? 'Custom ringtone loaded ✓ (pick "My Ringtone 🎧" as the alarm sound)'
     : 'Pick an audio file to use as your alarm.';
+  // show what the latest backup holds (written when an account logs out)
+  const info = document.getElementById('lastBackupInfo');
+  const importBtn = document.getElementById('importBackupBtn');
+  const backup = getLastBackup();
+  if (backup) {
+    info.textContent = 'Latest backup: from "' + backup.from + '" · ' + backup.when;
+    importBtn.disabled = false;
+    importBtn.style.opacity = 1;
+  } else {
+    info.textContent = 'No backup yet — logging out of an account creates one automatically.';
+    importBtn.disabled = true;
+    importBtn.style.opacity = 0.5;
+  }
+}
+
+function getLastBackup() {
+  try { return JSON.parse(localStorage.getItem('myPlannerLastBackup') || 'null'); }
+  catch (e) { return null; }
 }
 document.getElementById('settingsBtn').addEventListener('click', () => {
   refreshSettingsUI();
@@ -1437,6 +1468,27 @@ document.getElementById('ringFile').addEventListener('change', (e) => {
     status.textContent = 'Loaded ✓ — press Test alarm to hear it!';
   };
   reader.readAsDataURL(file);
+});
+
+// IMPORT LATEST BACKUP: copies everything from the last logged-out
+// account into THIS one. Asks first — it replaces what's here.
+document.getElementById('importBackupBtn').addEventListener('click', () => {
+  const backup = getLastBackup();
+  if (!backup || !currentUser) return;
+  if (!confirm('Replace everything in THIS account with the backup from "'
+    + backup.from + '" (' + backup.when + ')?')) return;
+  const d = backup.data;
+  activities = d.activities || [];
+  tasks = d.tasks || [];
+  nextId = d.nextId || 100;
+  if (d.alarm) alarmCfg = d.alarm;
+  game = Object.assign(defaultGame(), d.game || {});
+  applyTheme(game.theme);
+  buildColorRow();
+  refreshSettingsUI();
+  render();                                  // shows it all + autosaves here
+  document.getElementById('lastBackupInfo').textContent =
+    'Imported from "' + backup.from + '" ✓ — this account now has that data.';
 });
 
 // the Dev Panel: visible only to dev accounts, and locked behind

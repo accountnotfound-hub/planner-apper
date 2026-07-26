@@ -569,7 +569,8 @@ function taskCard(task) {
 
 function render() {
   document.getElementById('dateLine').textContent =
-    todayName() + ', ' + new Date().toLocaleDateString();
+    todayName() + ', ' + new Date().toLocaleDateString()
+    + (isDevUser ? '  ·  🛠 DEV MODE' : '');
 
   // ---- TODAY page ----
   const todays = activities
@@ -912,6 +913,20 @@ function persist() {
   saveUsers(users);
 }
 
+// ------------------------------------------------------------
+// DEV ACCOUNTS 🛠 — baked into the code, so they work on ANY
+// device, anytime. One for each of us.
+// ⚠ CHANGE THESE PINS before uploading to GitHub — the code is
+// public, so treat these like a clubhouse door code, not a bank
+// vault. (Dev accounts have no special powers over other users,
+// so the worst a snooper can do is use a planner. Still: change them.)
+// ------------------------------------------------------------
+const DEV_ACCOUNTS = {
+  'dev.acc': 'change-me-1',     // you, the founder
+  'claude.dev': 'change-me-2',  // me, the co-developer 🤝
+};
+let isDevUser = false;
+
 const loginPage = document.getElementById('loginPage');
 const loginMsg = document.getElementById('loginMsg');
 
@@ -941,6 +956,7 @@ document.getElementById('signupBtn').addEventListener('click', () => {
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
   if (name.length < 3) { loginMsg.textContent = 'Username needs 3+ characters.'; return; }
+  if (DEV_ACCOUNTS[name]) { loginMsg.textContent = 'That name is reserved for the dev team 🛠'; return; }
   if (hasBadWords(name)) { loginMsg.textContent = 'Pick a cleaner username 😅'; return; }
   if (pin.length < 4) { loginMsg.textContent = 'PIN needs 4+ characters.'; return; }
   const users = getUsers();
@@ -954,6 +970,21 @@ document.getElementById('loginBtn').addEventListener('click', () => {
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
   const users = getUsers();
+
+  // dev accounts first: they exist in the CODE, not just this device.
+  // If this device hasn't seen the dev account before, we create its
+  // storage slot on the spot — that's why they work anywhere.
+  if (DEV_ACCOUNTS[name]) {
+    if (DEV_ACCOUNTS[name] !== pin) { loginMsg.textContent = 'Wrong dev PIN.'; return; }
+    if (!users[name]) {
+      users[name] = { pin: pin, data: null, seenTut: true }; // devs skip the tour
+      saveUsers(users);
+    }
+    isDevUser = true;
+    enterApp(name, false);
+    return;
+  }
+
   if (!users[name]) { loginMsg.textContent = 'No account with that name — create one!'; return; }
   if (users[name].pin !== pin) { loginMsg.textContent = 'Wrong PIN. Try again.'; return; }
   enterApp(name, !users[name].seenTut);

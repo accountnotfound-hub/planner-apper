@@ -87,6 +87,27 @@
                  font-family: inherit; font-weight: 800; font-size: 16px;
                  cursor: pointer; }
 
+  /* ===== photo-proof overlay ===== */
+  #proofOverlay {
+    position: absolute; inset: 0; z-index: 78;
+    background: rgba(8, 10, 20, 0.94);
+    display: none; flex-direction: column;
+    justify-content: center; align-items: center; gap: 10px;
+    padding: 24px; text-align: center;
+  }
+  #proofOverlay.on { display: flex; }
+  #proofTitle { font-size: 22px; font-weight: 800; color: #ffd54a; }
+  #proofSub { font-size: 13px; color: #cdd3ea; }
+  #proofImg { max-width: 85%; max-height: 45%; border-radius: 12px;
+              border: 2px solid #3a4166; display: none; }
+  #proofFile { color: #8b92ad; font-size: 12px; max-width: 260px; }
+  #proofCancel { border: none; border-radius: 12px; padding: 10px 28px;
+                 background: #262b44; color: #cdd3ea; margin-top: 6px;
+                 font-family: inherit; font-weight: 800; font-size: 14px;
+                 cursor: pointer; }
+  .proofBtn { background: none; border: none; font-size: 15px;
+              cursor: pointer; padding: 4px; }
+
   nav {
     display: flex; border-top: 1px solid #262b44;
     background: #12152355;
@@ -365,6 +386,16 @@
     <div id="shopList"></div>
   </div>
 
+  <!-- ===== PHOTO PROOF (parental controls) ===== -->
+  <div id="proofOverlay">
+    <div style="font-size:48px;">📸</div>
+    <div id="proofTitle"></div>
+    <div id="proofSub"></div>
+    <input type="file" id="proofFile" accept="image/*" capture="environment">
+    <img id="proofImg" alt="proof photo">
+    <button id="proofCancel">Cancel</button>
+  </div>
+
   <!-- ===== DAILY REWARD popup ===== -->
   <div id="rewardOverlay">
     <div id="rewardIcon">🪙</div>
@@ -431,6 +462,35 @@
     <div class="setRow">
       <button class="smallBtn" id="importBackupBtn" style="flex:1;background:#7846dc;">⬇ Import latest backup</button>
     </div>
+
+    <h2>👨‍👩‍👦 Parental Controls</h2>
+    <div id="parentOff">
+      <p style="font-size:12px;color:#8b92ad;margin-bottom:6px;">
+        A parent creates a password here. While controls are ON, the
+        Shop stays locked each day until ALL of today's due tasks are
+        done — fun becomes the reward for finishing the work.
+      </p>
+      <div class="setRow"><input id="parentNewPass" type="password" placeholder="Create parent password (6+ characters)" maxlength="40" style="flex:1"></div>
+      <div class="setRow">
+        <label style="flex:1;font-size:12px;color:#cdd3ea;">📸 Require photo proof to complete tasks</label>
+        <input type="checkbox" id="parentPhotoChk" style="width:20px;height:20px;">
+      </div>
+      <div class="setRow"><button class="smallBtn" id="parentEnableBtn" style="flex:1;background:#c98a2e;">Turn ON parental controls</button></div>
+    </div>
+    <div id="parentOn" style="display:none;">
+      <p style="font-size:12px;color:#9be8b7;margin-bottom:6px;">
+        Parental controls are ON 🔒 — the Shop unlocks each day once
+        every task due today is completed.
+      </p>
+      <p id="parentPhotoStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
+      <div class="setRow"><button class="smallBtn" id="parentReportBtn" style="flex:1">📊 Progress report</button></div>
+      <div id="parentReport" style="font-size:12px;color:#cdd3ea;line-height:1.5;"></div>
+      <div class="setRow">
+        <input id="parentDisablePass" type="password" placeholder="Parent password" maxlength="40" style="flex:1">
+        <button class="smallBtn" id="parentDisableBtn" style="background:#7c2334;">Turn OFF</button>
+      </div>
+    </div>
+    <div id="parentMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;"></div>
 
     <!-- dev-only panel, hidden for normal users -->
     <div id="devSection" style="display:none;">
@@ -518,6 +578,9 @@ function defaultGame() {
   return { coins: 100, streak: 0, lastLogin: '', owned: {}, theme: 'ocean' };
 }
 let game = defaultGame();
+// parental controls: null = off; when on, holds the parent's
+// password hash. Saved per-account like everything else.
+let parental = null;
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -623,6 +686,7 @@ function taskCard(task) {
     + '<button class="checkbtn" onclick="toggleTask(' + task.id + ')">' + (task.done ? '✓' : '') + '</button>'
     + '<div style="flex:1"><div class="name">' + task.title + '</div>'
     + '<div class="sub">' + (a ? a.name : 'General') + (task.time ? ' · ' + task.time : '') + '</div></div>'
+    + (task.proof ? '<button class="proofBtn" onclick="viewProof(' + task.id + ')" title="See proof photo">📷</button>' : '')
     + '<span class="badge ' + info.cls + '">' + info.label + '</span>'
     + '<button class="xbtn" onclick="deleteTask(' + task.id + ')">✕</button>'
     + '</div>';
@@ -695,7 +759,14 @@ function deleteTask(id) {
 }
 function toggleTask(id) {
   const t = tasks.find(t => t.id === id);
-  if (t) t.done = !t.done;
+  if (!t) return;
+  // parent requires photo proof? No photo, no checkmark.
+  if (!t.done && parental && parental.photoProof) {
+    openProofCapture(id);
+    return;
+  }
+  t.done = !t.done;
+  if (!t.done) delete t.proof;   // un-completing removes old proof
   render();
 }
 
@@ -969,7 +1040,7 @@ function persist() {
   if (!currentUser) return;
   const users = getUsers();
   if (!users[currentUser]) return;
-  users[currentUser].data = { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game };
+  users[currentUser].data = { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game, parental: parental };
   if (!saveUsers(users)) {
     // the storage drawer is full — almost always a big custom
     // ringtone. Save everything EXCEPT the ringtone so no tasks
@@ -1026,8 +1097,10 @@ function enterApp(username, firstTime) {
     if (saved.alarm) alarmCfg = saved.alarm;
     // merge with defaults so old accounts get the new fields too
     game = Object.assign(defaultGame(), saved.game || {});
+    parental = saved.parental || null;
   } else {
     game = defaultGame();
+    parental = null;
   }
   applyTheme(game.theme);
   buildColorRow();
@@ -1100,7 +1173,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.setItem('myPlannerLastBackup', JSON.stringify({
       from: currentUser,
       when: new Date().toLocaleString(),
-      data: { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game },
+      data: { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game, parental: parental },
     }));
   } catch (e) {}
   currentUser = null;
@@ -1259,6 +1332,15 @@ function refreshSettingsUI() {
   document.getElementById('ringStatus').textContent = game.customSound
     ? 'Custom ringtone loaded ✓ (pick "My Ringtone 🎧" as the alarm sound)'
     : 'Pick an audio file to use as your alarm.';
+  // parental controls section: show setup or active view
+  document.getElementById('parentOff').style.display = parental ? 'none' : 'block';
+  document.getElementById('parentOn').style.display = parental ? 'block' : 'none';
+  document.getElementById('parentPhotoStatus').textContent =
+    parental && parental.photoProof
+      ? '📸 Photo proof is required to complete tasks.'
+      : (parental ? 'Photo proof: not required.' : '');
+  document.getElementById('parentReport').textContent = '';
+  document.getElementById('parentMsg').textContent = '';
   // show what the latest backup holds (written when an account logs out)
   const info = document.getElementById('lastBackupInfo');
   const importBtn = document.getElementById('importBackupBtn');
@@ -1382,10 +1464,25 @@ function shopRow(item, ownedFlag) {
     + '<div class="desc">' + item.desc + '</div></div>' + btn + '</div>';
 }
 
+function tasksDueTodayLeft() {
+  return tasks.filter(t => !t.done && t.due === todayKey()).length;
+}
+
 function renderShop() {
   const list = document.getElementById('shopList');
   if (!list) return;
   document.getElementById('shopBalance').textContent = '🪙 ' + game.coins + ' Plan Coins';
+  // PARENTAL LOCK: today's work before today's fun
+  if (parental) {
+    const left = tasksDueTodayLeft();
+    if (left > 0) {
+      list.innerHTML = '<div class="shopItem"><div style="font-size:24px">🔒</div>'
+        + '<div class="grow"><div class="name">Shop locked by parental controls</div>'
+        + '<div class="desc">Finish ' + left + ' more task' + (left > 1 ? 's' : '')
+        + ' due today to unlock it!</div></div></div>';
+      return;
+    }
+  }
   // the default Ocean theme is always owned, so you can switch back
   let html = shopRow({ id: 'theme_ocean', icon: '🌊', name: 'Ocean Theme', desc: 'The classic look', price: 0, kind: 'theme', theme: 'ocean' }, true);
   for (const item of SHOP_ITEMS) html += shopRow(item, game.owned[item.id]);
@@ -1476,6 +1573,7 @@ document.getElementById('importBackupBtn').addEventListener('click', () => {
   nextId = d.nextId || 100;
   if (d.alarm) alarmCfg = d.alarm;
   game = Object.assign(defaultGame(), d.game || {});
+  parental = d.parental || null;   // parental settings travel with the data
   customAudio = null;   // imported account may have a different ringtone
   applyTheme(game.theme);
   buildColorRow();
@@ -1483,6 +1581,117 @@ document.getElementById('importBackupBtn').addEventListener('click', () => {
   render();                                  // shows it all + autosaves here
   document.getElementById('lastBackupInfo').textContent =
     'Imported from "' + backup.from + '" ✓ — this account now has that data.';
+});
+
+// ------------------------------------------------------------
+// PARENTAL CONTROLS — parent password is hashed like everything.
+// ------------------------------------------------------------
+// --- photo proof: capture + view ---
+let pendingProofTaskId = null;
+const proofOverlay = document.getElementById('proofOverlay');
+
+function openProofCapture(taskId) {
+  pendingProofTaskId = taskId;
+  document.getElementById('proofTitle').textContent = 'Parent wants proof! 📸';
+  document.getElementById('proofSub').textContent =
+    'Snap a photo of your finished work to mark this task done.';
+  document.getElementById('proofFile').style.display = 'block';
+  document.getElementById('proofImg').style.display = 'none';
+  document.getElementById('proofCancel').textContent = 'Cancel';
+  proofOverlay.classList.add('on');
+}
+function viewProof(taskId) {
+  const t = tasks.find(x => x.id === taskId);
+  if (!t || !t.proof) return;
+  pendingProofTaskId = null;                    // view mode, not capture mode
+  document.getElementById('proofTitle').textContent = 'Proof photo 📷';
+  document.getElementById('proofSub').textContent = '"' + t.title + '" — taken when it was completed.';
+  document.getElementById('proofFile').style.display = 'none';
+  const img = document.getElementById('proofImg');
+  img.src = t.proof;
+  img.style.display = 'block';
+  document.getElementById('proofCancel').textContent = 'Close';
+  proofOverlay.classList.add('on');
+}
+window.viewProof = viewProof;                   // task cards call it by name
+
+document.getElementById('proofCancel').addEventListener('click', () => {
+  proofOverlay.classList.remove('on');
+  pendingProofTaskId = null;
+});
+
+// shrink the photo before storing — full camera photos are HUGE,
+// and our storage drawer is small. 480px + jpeg = ~30KB each.
+function compressImage(file, done) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 480 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * scale);
+      c.height = Math.round(img.height * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      done(c.toDataURL('image/jpeg', 0.55));
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.getElementById('proofFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file || pendingProofTaskId === null) return;
+  compressImage(file, (dataUrl) => {
+    const t = tasks.find(x => x.id === pendingProofTaskId);
+    if (t) {
+      t.proof = dataUrl;
+      t.done = true;                            // proof given → NOW it counts
+    }
+    pendingProofTaskId = null;
+    proofOverlay.classList.remove('on');
+    e.target.value = '';                        // same-file re-pick fix, again
+    render();
+  });
+});
+
+document.getElementById('parentEnableBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('parentMsg');
+  const pass = document.getElementById('parentNewPass').value;
+  if (pass.length < 6) { msg.textContent = 'Parent password needs 6+ characters.'; return; }
+  parental = {
+    hash: await hashPin(pass),
+    photoProof: document.getElementById('parentPhotoChk').checked,
+  };
+  document.getElementById('parentNewPass').value = '';
+  refreshSettingsUI();
+  render();                                   // saves + applies the shop lock
+  msg.style.color = '#9be8b7';
+  msg.textContent = 'Parental controls ON ✓';
+});
+
+document.getElementById('parentDisableBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('parentMsg');
+  msg.style.color = '#ffb4c0';
+  if (!parental) return;
+  const typed = await hashPin(document.getElementById('parentDisablePass').value);
+  if (typed !== parental.hash) { msg.textContent = 'Wrong parent password.'; return; }
+  parental = null;
+  document.getElementById('parentDisablePass').value = '';
+  refreshSettingsUI();
+  render();
+  msg.style.color = '#9be8b7';
+  msg.textContent = 'Parental controls turned off.';
+});
+
+document.getElementById('parentReportBtn').addEventListener('click', () => {
+  const done = tasks.filter(t => t.done).length;
+  const open = tasks.filter(t => !t.done).length;
+  const overdue = tasks.filter(t => !t.done && t.due < todayKey()).length;
+  document.getElementById('parentReport').textContent =
+    '📊 Tasks completed: ' + done + ' · Still to do: ' + open
+    + ' · Overdue: ' + overdue + ' · Login streak: ' + game.streak + ' days'
+    + ' · Due today, not done: ' + tasksDueTodayLeft();
 });
 
 // the Dev Panel: visible only to dev accounts, and locked behind

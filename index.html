@@ -190,6 +190,20 @@
 
   .task-done .name { text-decoration: line-through; color: #8b92ad; }
 
+  /* priority dot on task cards */
+  .prioDot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .prio-high { background: #ff5a5a; }
+  .prio-med  { background: #ffd54a; }
+  .prio-low  { background: #7de8a0; }
+
+  /* search + filter bar */
+  #taskSearch { background: #10131f; color: #eef0f8; border: 1px solid #2c3352;
+                border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: 13px; }
+  .filterBtn { flex: 1; background: #1c2138; color: #8b92ad; border: 1px solid #2c3352;
+               border-radius: 8px; padding: 7px 0; font-family: inherit; font-weight: 700;
+               font-size: 12px; cursor: pointer; }
+  .filterBtn.active { background: #2e5c8c; color: #bfe0ff; border-color: #2e5c8c; }
+
   .xbtn { background: none; border: none; color: #566; font-size: 16px;
           cursor: pointer; padding: 4px; }
   .checkbtn { width: 26px; height: 26px; border-radius: 8px;
@@ -439,9 +453,32 @@
         <label>Time</label>
         <input id="taskTime" type="time" value="18:00" style="flex:1">
       </div>
+      <div class="sliderRow">
+        <label>Priority</label>
+        <select id="taskPriority" style="flex:1">
+          <option value="high">🔴 High</option>
+          <option value="med" selected>🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+      </div>
+      <div class="sliderRow">
+        <label>Repeat</label>
+        <select id="taskRepeat" style="flex:1">
+          <option value="none" selected>No repeat</option>
+          <option value="daily">🔁 Every day</option>
+          <option value="weekly">🔁 Every week</option>
+        </select>
+      </div>
       <div id="duePreview"></div>
       <button type="submit">+ Add task</button>
     </form>
+    <!-- search + filter bar -->
+    <input id="taskSearch" placeholder="🔍 Search tasks…" style="width:100%;margin-bottom:6px;">
+    <div id="taskFilters" style="display:flex;gap:6px;margin-bottom:10px;">
+      <button type="button" class="filterBtn active" data-filter="all">All</button>
+      <button type="button" class="filterBtn" data-filter="today">Today</button>
+      <button type="button" class="filterBtn" data-filter="overdue">Overdue</button>
+    </div>
     <div id="taskList"></div>
   </div>
 
@@ -690,6 +727,8 @@ let tasks = [
 ];
 let nextId = 10;
 let pickedColor = COLORS[0];
+let taskSearchText = '';     // what's typed in the task search box
+let taskFilter = 'all';      // 'all' | 'today' | 'overdue'
 
 // the reward-game state: coins, streak, and what you've bought.
 // Lives inside each account's saved data like everything else.
@@ -813,9 +852,12 @@ function activityCard(a, showDay) {
 function taskCard(task) {
   const a = activityById(task.activityId);
   const info = dueInfo(task);
+  const prio = task.priority || 'med';
+  const repeatMark = (task.repeat && task.repeat !== 'none') ? ' 🔁' : '';
   return '<div class="card ' + (task.done ? 'task-done' : '') + '" style="border-left-color:' + (a ? a.color : '#555') + '">'
     + '<button class="checkbtn" onclick="toggleTask(' + task.id + ')">' + (task.done ? '✓' : '') + '</button>'
-    + '<div style="flex:1"><div class="name">' + task.title + '</div>'
+    + '<div class="prioDot prio-' + prio + '" title="' + prio + ' priority"></div>'
+    + '<div style="flex:1"><div class="name">' + task.title + repeatMark + '</div>'
     + '<div class="sub">' + (a ? a.name : 'General') + (task.time ? ' · ' + task.time : '') + '</div></div>'
     + (task.proof ? '<button class="proofBtn" onclick="viewProof(' + task.id + ')" title="See proof photo">📷</button>' : '')
     + '<span class="badge ' + info.cls + '">' + info.label + '</span>'
@@ -871,12 +913,26 @@ function render() {
   }
   document.getElementById('weekList').innerHTML = week;
 
-  // ---- TASKS page: not-done first, then by due date ----
-  const sorted = [...tasks].sort((a, b) =>
-    (a.done - b.done) || ((a.due + (a.time || '')) < (b.due + (b.time || '')) ? -1 : 1));
+  // ---- TASKS page: search + filter, then sort ----
+  // 1) SEARCH: keep tasks whose title contains the query (case-insensitive)
+  // 2) FILTER: All / Today / Overdue
+  // 3) SORT: not-done first, then by priority (high→low), then due date
+  const PRIO_RANK = { high: 0, med: 1, low: 2 };
+  const q = taskSearchText.toLowerCase();
+  const today = todayKey();
+  let shown = tasks.filter(t => {
+    if (q && t.title.toLowerCase().indexOf(q) === -1) return false;
+    if (taskFilter === 'today') return t.due === today;
+    if (taskFilter === 'overdue') return !t.done && t.due < today;
+    return true;                                  // 'all'
+  });
+  shown.sort((a, b) =>
+    (a.done - b.done)
+    || ((PRIO_RANK[a.priority || 'med']) - (PRIO_RANK[b.priority || 'med']))
+    || ((a.due + (a.time || '')) < (b.due + (b.time || '')) ? -1 : 1));
   document.getElementById('taskList').innerHTML =
-    sorted.length ? sorted.map(taskCard).join('')
-                  : '<div class="empty">No tasks yet.</div>';
+    shown.length ? shown.map(taskCard).join('')
+                 : '<div class="empty">' + (q || taskFilter !== 'all' ? 'No tasks match.' : 'No tasks yet.') + '</div>';
 
   // keep the task form's activity dropdown in sync
   document.getElementById('taskActivity').innerHTML =
@@ -909,18 +965,37 @@ function toggleTask(id) {
     return;
   }
   t.done = !t.done;
-  if (t.done) { celebrateTaskDone(); }              // 🎉 juice!
-  else { delete t.proof; }                          // un-completing removes old proof
+  if (t.done) {
+    celebrateTaskDone(t);                           // 🎉 juice!
+    rollRecurring(t);                               // repeating task? schedule the next one
+  } else {
+    delete t.proof;                                 // un-completing removes old proof
+  }
   render();
 }
 
-// called when a task gets ticked done — confetti + a coin reward,
-// capped per day so nobody farms coins with fake tasks.
-function celebrateTaskDone() {
+// if a completed task repeats, bring it back for its next date instead
+// of leaving it done. Daily → tomorrow, Weekly → 7 days out.
+function rollRecurring(t) {
+  if (!t.repeat || t.repeat === 'none') return;
+  t.due = t.repeat === 'daily' ? todayPlus(1) : todayPlus(7);
+  t.done = false;                                   // it's waiting to be done again
+  t.rewarded = false;                               // next real completion earns coins again
+  delete t.proof;                                   // fresh occurrence, fresh proof
+  showToast('🔁 Repeats — back on ' + t.due.slice(5));
+}
+
+// called when a task gets ticked done — confetti + a coin reward.
+// BUG FIX: each task pays coins only ONCE, ever. We stamp t.rewarded
+// the first time it pays; unchecking + rechecking gives no more coins
+// (that was the "infinite coins" exploit). Daily cap is a second guard.
+function celebrateTaskDone(t) {
   confettiBurst();
+  if (t.rewarded) { showToast('✅ Task done!'); return; }   // already paid for this task
+  t.rewarded = true;
   const today = todayKey();
   if (game.taskCoinDay !== today) { game.taskCoinDay = today; game.taskCoinsToday = 0; }
-  if (game.taskCoinsToday < 20) {                    // daily cap: 10 tasks × 2 coins
+  if (game.taskCoinsToday < 20) {                    // daily cap: 10 fresh tasks × 2 coins
     game.coins += 2;
     game.taskCoinsToday += 2;
     showToast('✅ Task done! +2 🪙');
@@ -974,6 +1049,8 @@ document.getElementById('taskForm').addEventListener('submit', (e) => {
     activityId: Number(document.getElementById('taskActivity').value),
     due: dueFromSliders(),       // built from the three sliders
     time: document.getElementById('taskTime').value || '',
+    priority: document.getElementById('taskPriority').value,   // high/med/low
+    repeat: document.getElementById('taskRepeat').value,       // none/daily/weekly
     done: false,
   });
   document.getElementById('taskTitle').value = '';
@@ -996,6 +1073,20 @@ function switchTab(name) {
 }
 for (const btn of document.querySelectorAll('nav button')) {
   btn.addEventListener('click', () => switchTab(btn.dataset.page));
+}
+
+// search box: re-render the task list as you type
+document.getElementById('taskSearch').addEventListener('input', (e) => {
+  taskSearchText = e.target.value.trim();
+  render();
+});
+// filter buttons: All / Today / Overdue
+for (const b of document.querySelectorAll('.filterBtn')) {
+  b.addEventListener('click', () => {
+    taskFilter = b.dataset.filter;
+    document.querySelectorAll('.filterBtn').forEach(x => x.classList.toggle('active', x === b));
+    render();
+  });
 }
 
 document.getElementById('activityDay').innerHTML =
@@ -1981,6 +2072,7 @@ document.getElementById('proofFile').addEventListener('change', (e) => {
     if (t) {
       t.proof = dataUrl;
       t.done = true;                            // proof given → NOW it counts
+      celebrateTaskDone(t);                     // reward once, same as a normal check
     }
     pendingProofTaskId = null;
     proofOverlay.classList.remove('on');

@@ -843,9 +843,9 @@ function activityById(id) { return activities.find(a => a.id === id); }
 
 function activityCard(a, showDay) {
   return '<div class="card" style="border-left-color:' + a.color + '">'
-    + '<div><div class="name">' + a.name + '</div>'
+    + '<div style="flex:1">' + '<div class="name">' + a.name + '</div>'
     + '<div class="sub">' + (showDay ? a.day + ' · ' : '') + a.time + '</div></div>'
-    + '<button class="xbtn" onclick="renameActivity(' + a.id + ')" title="Rename">✎</button>'
+    + '<button class="xbtn" style="color:#7dc4ff" onclick="renameActivity(' + a.id + ')" title="Rename">✎</button>'
     + '<button class="xbtn" onclick="deleteActivity(' + a.id + ')">✕</button>'
     + '</div>';
 }

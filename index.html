@@ -593,6 +593,9 @@
     </p>
     <div id="adminStats" style="font-size:13px;color:#7dc4ff;font-weight:800;margin-bottom:8px;"></div>
     <div id="adminList"></div>
+    <h2 style="font-size:14px;color:#8b92ad;text-transform:uppercase;letter-spacing:1px;margin:16px 0 6px;">☁️ Cloud accounts (everyone)</h2>
+    <div id="adminMyEmail" style="font-size:12px;color:#8b92ad;margin-bottom:8px;"></div>
+    <div id="adminCloud"></div>
   </div>
 
   <!-- ===== ALARM (takes over the screen when it's time) ===== -->
@@ -610,6 +613,7 @@
     <div class="tag">Your schedule. Your tasks. Your app.</div>
     <input id="loginName" placeholder="Username" maxlength="16" autocomplete="off">
     <input id="loginPin" type="password" placeholder="Password (4+ characters)" maxlength="40">
+    <input id="loginEmail" type="email" placeholder="Email (only for new accounts)" maxlength="60" autocomplete="off">
     <div id="loginMsg"></div>
     <button id="loginBtn">Log in</button>
     <button id="signupBtn">Create account</button>
@@ -689,6 +693,8 @@ let cloudUser = null;      // { uid, name }
 let cloudSaveFn = null;    // plugged in by initCloud()
 let cloudSignOutFn = null;
 let cloudDeleteFn = null;  // erases this Google account's cloud data
+let cloudAdminListFn = null;  // admin: list ALL signed-up accounts
+let cloudSetBanFn = null;     // admin: ban / unban a cloud account
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -1208,6 +1214,16 @@ const DEV_ACCOUNTS = {
   'osama':      'e4a5071e23e7c4f6df8ff2785c004558228de273ae05ce42a8d1a9b528f94798',
 };
 
+// The admin email linked to the dev.acc account. Signing into the
+// app with this Google email makes you the cloud admin (it's the
+// same email that's in the Firestore rules — that's what actually
+// enforces it). Dev accounts still work exactly as before.
+const ADMIN_EMAILS = ['ali.sabri.2004.19@gmail.com'];   // dev.acc's linked email
+function isAdminEmail(email) {
+  return !!email && ADMIN_EMAILS.indexOf(email.toLowerCase()) !== -1;
+}
+let cloudIsAdmin = false;   // true when signed in as the admin Google account
+
 // the blender: SHA-256, built into every browser. The "salt" is a
 // fixed extra string mixed in so generic hash-lookup tables fail.
 async function hashPin(pin) {
@@ -1256,15 +1272,19 @@ function enterApp(username, firstTime) {
 document.getElementById('signupBtn').addEventListener('click', async () => {
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
+  const email = document.getElementById('loginEmail').value.trim();
   if (name.length < 3) { loginMsg.textContent = 'Username needs 3+ characters.'; return; }
   if (DEV_ACCOUNTS[name]) { loginMsg.textContent = 'That name is reserved for the dev team 🛠'; return; }
   if (hasBadWords(name)) { loginMsg.textContent = 'Pick a cleaner username 😅'; return; }
   if (pin.length < 4) { loginMsg.textContent = 'Password needs 4+ characters.'; return; }
+  // NEW: creating an account requires a valid email (login won't need it)
+  if (!/^\S+@\S+\.\S+$/.test(email)) { loginMsg.textContent = 'Enter a valid email to create an account.'; return; }
   const users = getUsers();
   if (users[name]) { loginMsg.textContent = 'That name is taken — log in instead?'; return; }
   // we store the HASH of the PIN — the PIN itself is never saved
-  users[name] = { pinHash: await hashPin(pin), data: null, seenTut: false };
+  users[name] = { pinHash: await hashPin(pin), email: email, data: null, seenTut: false };
   saveUsers(users);
+  document.getElementById('loginEmail').value = '';
   enterApp(name, true);
 });
 
@@ -1518,8 +1538,10 @@ function getLastBackup() {
 }
 document.getElementById('settingsBtn').addEventListener('click', () => {
   refreshSettingsUI();
-  // the Dev Panel section only shows for dev accounts
-  document.getElementById('devSection').style.display = isDevUser ? 'block' : 'none';
+  // Dev Panel shows for dev accounts AND the admin Google account,
+  // but the tools still stay locked behind the dev password — dev
+  // accounts behave exactly as before.
+  document.getElementById('devSection').style.display = (isDevUser || cloudIsAdmin) ? 'block' : 'none';
   document.getElementById('devTools').style.display = 'none';   // locked until password
   document.getElementById('devPass').value = '';
   document.getElementById('devMsg').textContent = '';
@@ -2077,7 +2099,7 @@ function renderAdmin() {
     html += '<div class="adminUser' + (banned ? ' banned' : '') + '">'
       + '<div class="top"><div><div class="who">' + name
       + (DEV_ACCOUNTS[name] ? ' 🛠' : '') + '</div>'
-      + '<div class="meta">🪙 ' + (g.coins || 0) + ' · 🔥 ' + (g.streak || 0)
+      + '<div class="meta">' + (u.email ? u.email + ' · ' : '') + '🪙 ' + (g.coins || 0) + ' · 🔥 ' + (g.streak || 0)
       + '-day · ' + ((u.data && u.data.tasks) ? u.data.tasks.length : 0) + ' tasks</div></div>'
       + (banned ? '<span class="banTag">BANNED</span>' : '') + '</div>'
       + '<div class="acts">'
@@ -2093,7 +2115,51 @@ function renderAdmin() {
 
 document.getElementById('adminOpenBtn').addEventListener('click', () => {
   renderAdmin();
+  loadCloudAdmin();          // also pull the cloud "everyone" list
   adminPage.classList.add('on');
+});
+
+// CLOUD ADMIN: list every Google account that signed up (works only
+// if YOU are the admin in the Firestore rules — otherwise it politely
+// says so). The app shows your admin email right here to copy.
+async function loadCloudAdmin() {
+  const box = document.getElementById('adminCloud');
+  const emailBox = document.getElementById('adminMyEmail');
+  if (!cloudUser) {
+    emailBox.textContent = 'Log in with Google to manage cloud accounts.';
+    box.innerHTML = ''; return;
+  }
+  emailBox.innerHTML = 'Your admin email (put this in the rules): <b style="color:#7dc4ff">' + (cloudUser.email || '?') + '</b>';
+  box.innerHTML = '<div class="empty">Loading…</div>';
+  if (!cloudAdminListFn) { box.innerHTML = '<div class="empty">Cloud not ready.</div>'; return; }
+  const list = await cloudAdminListFn();
+  if (list === null) {
+    box.innerHTML = '<div class="empty">Not the admin yet, or rules aren\'t published. Publish the rules I gave you with your email above.</div>';
+    return;
+  }
+  if (!list.length) { box.innerHTML = '<div class="empty">No cloud sign-ups yet.</div>'; return; }
+  let html = '';
+  for (const a of list) {
+    html += '<div class="adminUser' + (a.banned ? ' banned' : '') + '">'
+      + '<div class="top"><div><div class="who">' + a.name + '</div>'
+      + '<div class="meta">' + a.email + ' · 🪙 ' + a.coins + ' · 🔥 ' + a.streak
+      + '-day · seen ' + a.lastSeen + '</div></div>'
+      + (a.banned ? '<span class="banTag">BANNED</span>' : '') + '</div>'
+      + '<div class="acts">'
+      + (a.banned
+          ? '<button class="aUnban" data-cunban="' + a.uid + '">Unban</button>'
+          : '<button class="aBan" data-cban="' + a.uid + '">Ban</button>')
+      + '</div></div>';
+  }
+  box.innerHTML = html;
+}
+
+document.getElementById('adminCloud').addEventListener('click', async (e) => {
+  const ban = e.target.dataset.cban, unban = e.target.dataset.cunban;
+  if ((!ban && !unban) || !cloudSetBanFn) return;
+  try { await cloudSetBanFn(ban || unban, !!ban); }
+  catch (err) { alert('Could not update — are you the admin and are the rules published?'); }
+  loadCloudAdmin();
 });
 document.getElementById('closeAdmin').addEventListener('click', () => {
   adminPage.classList.remove('on');
@@ -2182,13 +2248,32 @@ async function initCloud() {
       try {
         if (game.customSound) localStorage.setItem('ringFor-' + cloudUser.uid, game.customSound);
       } catch (e) {}
+      // add/update this account in the public "who signed up" registry
+      try {
+        await dbMod.setDoc(dbMod.doc(db, 'accounts', cloudUser.uid), {
+          name: cloudUser.name, email: cloudUser.email || '',
+          coins: game.coins, streak: game.streak,
+          lastSeen: new Date().toLocaleString(),
+        }, { merge: true });
+      } catch (e) { /* rules not published yet — harmless */ }
     }
 
     async function enterCloudApp(user) {
-      cloudUser = { uid: user.uid, name: user.displayName || user.email || 'Google user' };
+      cloudUser = { uid: user.uid, name: user.displayName || user.email || 'Google user', email: user.email || '' };
       currentUser = null;
-      isDevUser = false;
+      cloudIsAdmin = isAdminEmail(cloudUser.email);   // 👑 admin Google account?
+      isDevUser = cloudIsAdmin;                        // admin gets the DEV badge too
       cloudSaveFn = saveToCloud;
+      // banned in the cloud? locked out on every device.
+      try {
+        const banSnap = await dbMod.getDoc(dbMod.doc(db, 'bans', user.uid));
+        if (banSnap.exists()) {
+          cloudUser = null;
+          await authMod.signOut(auth).catch(() => {});
+          loginMsg.textContent = '🚫 This account has been banned.';
+          return;
+        }
+      } catch (e) { /* can't reach bans list — let them in */ }
       let firstTime = true;
       try {
         const snap = await dbMod.getDoc(dbMod.doc(db, 'planners', user.uid));
@@ -2220,6 +2305,30 @@ async function initCloud() {
     cloudDeleteFn = () => cloudUser
       ? dbMod.deleteDoc(dbMod.doc(db, 'planners', cloudUser.uid))
       : Promise.resolve();
+
+    // ADMIN: read the whole accounts registry + who's banned.
+    // Returns null if the rules don't let this user (i.e. not admin).
+    cloudAdminListFn = async () => {
+      try {
+        const accSnap = await dbMod.getDocs(dbMod.collection(db, 'accounts'));
+        const banSnap = await dbMod.getDocs(dbMod.collection(db, 'bans'));
+        const banned = {};
+        banSnap.forEach(d => { banned[d.id] = true; });
+        const list = [];
+        accSnap.forEach(d => {
+          const a = d.data();
+          list.push({ uid: d.id, name: a.name || '?', email: a.email || '',
+                      coins: a.coins || 0, streak: a.streak || 0,
+                      lastSeen: a.lastSeen || '', banned: !!banned[d.id] });
+        });
+        return list;
+      } catch (e) { return null; }   // not admin, or rules not published
+    };
+    // ADMIN: ban (write) or unban (delete) a cloud account
+    cloudSetBanFn = async (uid, ban) => {
+      if (ban) await dbMod.setDoc(dbMod.doc(db, 'bans', uid), { banned: true });
+      else await dbMod.deleteDoc(dbMod.doc(db, 'bans', uid));
+    };
 
     gBtn.addEventListener('click', async () => {
       try {

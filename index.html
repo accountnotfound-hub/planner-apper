@@ -65,6 +65,11 @@
   .shopBtn.cant { background: #262b44; color: #566; cursor: default; }
   .shopBtn.equip { background: #50aa5a; color: white; }
   .shopBtn.equipped { background: #1e4d33; color: #9be8b7; cursor: default; }
+  .shopBtn.deal { background: #ffd54a; color: #1a1a2a; }
+  /* the rotating Daily Deal card — a gold glow to draw the eye */
+  .dealItem { border: 1.5px solid #ffd54a;
+              background: linear-gradient(180deg, #241f10, #1c2138);
+              box-shadow: 0 0 12px rgba(255,213,74,0.25); }
 
   /* ===== daily reward popup ===== */
   #rewardOverlay {
@@ -82,6 +87,33 @@
   }
   #rewardTitle { font-size: 24px; font-weight: 800; color: #ffd54a; }
   #rewardSub { font-size: 14px; color: #cdd3ea; }
+
+  /* ===== toast (little slide-in message) ===== */
+  #toast {
+    position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%) translateY(20px);
+    background: #1c2138; border: 1px solid #3a4166; color: #eef0f8;
+    padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
+    max-width: 88%; text-align: center;
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===== confetti (celebration burst) ===== */
+  .confetti {
+    position: absolute; width: 8px; height: 8px; z-index: 92;
+    pointer-events: none; border-radius: 2px;
+    animation: confettiFall 1.1s ease-in forwards;
+  }
+  @keyframes confettiFall {
+    0%   { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(220px) rotate(540deg); }
+  }
+
+  /* danger button for delete account */
+  #deleteAccBtn { background: none; color: #ff6b7f; border: 1px solid #7c2334;
+                  border-radius: 10px; padding: 10px; width: 100%;
+                  font-family: inherit; font-weight: 800; font-size: 13px;
+                  cursor: pointer; margin-top: 8px; }
   #rewardClaim { border: none; border-radius: 12px; padding: 12px 34px;
                  margin-top: 8px; background: #ffd54a; color: #1a1a2a;
                  font-family: inherit; font-weight: 800; font-size: 16px;
@@ -433,6 +465,9 @@
     <button id="proofCancel">Cancel</button>
   </div>
 
+  <!-- ===== toast message ===== -->
+  <div id="toast"></div>
+
   <!-- ===== DAILY REWARD popup ===== -->
   <div id="rewardOverlay">
     <div id="rewardIcon">🪙</div>
@@ -516,6 +551,7 @@
     </div>
 
     <button id="logoutBtn">Log out</button>
+    <button id="deleteAccBtn">🗑 Delete my account</button>
   </div>
 
   <!-- ===== ALARM (takes over the screen when it's time) ===== -->
@@ -598,7 +634,8 @@ let pickedColor = COLORS[0];
 function defaultGame() {
   // new players start with 100 coins — a welcome gift so the shop
   // feels alive from day one instead of weeks away
-  return { coins: 100, streak: 0, lastLogin: '', owned: {}, theme: 'ocean' };
+  return { coins: 100, streak: 0, lastLogin: '', owned: {}, theme: 'ocean',
+           taskCoinDay: '', taskCoinsToday: 0 };
 }
 let game = defaultGame();
 // parental controls: null = off; when on, holds the parent's
@@ -610,6 +647,7 @@ let parental = null;
 let cloudUser = null;      // { uid, name }
 let cloudSaveFn = null;    // plugged in by initCloud()
 let cloudSignOutFn = null;
+let cloudDeleteFn = null;  // erases this Google account's cloud data
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -807,8 +845,24 @@ function toggleTask(id) {
     return;
   }
   t.done = !t.done;
-  if (!t.done) delete t.proof;   // un-completing removes old proof
+  if (t.done) { celebrateTaskDone(); }              // 🎉 juice!
+  else { delete t.proof; }                          // un-completing removes old proof
   render();
+}
+
+// called when a task gets ticked done — confetti + a coin reward,
+// capped per day so nobody farms coins with fake tasks.
+function celebrateTaskDone() {
+  confettiBurst();
+  const today = todayKey();
+  if (game.taskCoinDay !== today) { game.taskCoinDay = today; game.taskCoinsToday = 0; }
+  if (game.taskCoinsToday < 20) {                    // daily cap: 10 tasks × 2 coins
+    game.coins += 2;
+    game.taskCoinsToday += 2;
+    showToast('✅ Task done! +2 🪙');
+  } else {
+    showToast('✅ Task done! (daily coin cap reached)');
+  }
 }
 
 // IMPORTANT: this script is a MODULE (needed for the Firebase import),
@@ -1230,6 +1284,27 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   location.reload();
 });
 
+// DELETE ACCOUNT — permanent, so we ask twice.
+document.getElementById('deleteAccBtn').addEventListener('click', async () => {
+  if (!confirm('Delete your account and ALL its data forever? This cannot be undone.')) return;
+  if (!confirm('Are you REALLY sure? Everything — tasks, coins, streak — will be gone.')) return;
+  try { localStorage.removeItem('myPlannerSession'); } catch (e) {}
+  if (cloudUser) {
+    // Google account: erase the cloud data, then sign out of Google.
+    // (Google still owns the identity itself — this clears OUR data.)
+    if (cloudDeleteFn) { try { await cloudDeleteFn(); } catch (e) {} }
+    if (cloudSignOutFn) { try { await cloudSignOutFn(); } catch (e) {} }
+    cloudUser = null;
+  } else if (currentUser) {
+    // password account: remove it from this device
+    const users = getUsers();
+    delete users[currentUser];
+    saveUsers(users);
+    currentUser = null;
+  }
+  location.reload();
+});
+
 // pressing Enter in the PIN box = clicking Log in (small touch, feels right)
 document.getElementById('loginPin').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('loginBtn').click();
@@ -1461,6 +1536,8 @@ const THEMES = {
   sunset: { name: 'Sunset', bg: 'linear-gradient(180deg, #2e1726, #1f1013)', accent: '#ff9d6c' },
   forest: { name: 'Forest', bg: 'linear-gradient(180deg, #14261c, #0c1810)', accent: '#7de8a0' },
   gold:   { name: 'Midnight Gold', bg: 'linear-gradient(180deg, #262014, #17130a)', accent: '#ffd54a' },
+  // EXCLUSIVE — can't be bought, only earned at a 30-day streak 🔥
+  streaklord: { name: 'Streak Lord', bg: 'linear-gradient(180deg, #2a0f1a, #140812)', accent: '#ff5e7a' },
 };
 function applyTheme(id) {
   const t = THEMES[id] || THEMES.ocean;
@@ -1507,6 +1584,33 @@ function tasksDueTodayLeft() {
   return tasks.filter(t => !t.done && t.due === todayKey()).length;
 }
 
+// SHOP ROTATION 🔄 — one item is the "Daily Deal" at 50% off, and
+// which item it is CHANGES EVERY DAY. The trick: we turn today's
+// date into a day-number, then use modulo (%) to pick an item from
+// the list. Same for everyone all day, rotates to the next item
+// tomorrow — no stored state needed, the calendar does the work.
+const DEAL_DISCOUNT = 0.5;   // 50% off — a deal should FEEL like one
+function dayNumber() {
+  // "2026-07-27" → a whole number of days. Floor removes any time.
+  return Math.floor(new Date(todayKey()).getTime() / 86400000);
+}
+function dailyDeal() {
+  const item = SHOP_ITEMS[dayNumber() % SHOP_ITEMS.length];
+  return { item: item, price: Math.max(1, Math.floor(item.price * (1 - DEAL_DISCOUNT))) };
+}
+
+// ONE place that actually spends coins — the regular shop AND the
+// daily deal both call it, so they can never disagree on the rules.
+function buyItem(item, price) {
+  if (!item || game.owned[item.id] || game.coins < price) return;
+  game.coins -= price;                   // pay first, always
+  game.owned[item.id] = true;
+  if (item.kind === 'theme') applyTheme(item.theme);
+  if (item.id === 'colors_pack') buildColorRow();
+  showToast('🛒 Bought ' + item.name + '!');
+  render();                              // updates everything + autosaves
+}
+
 function renderShop() {
   const list = document.getElementById('shopList');
   if (!list) return;
@@ -1522,9 +1626,31 @@ function renderShop() {
       return;
     }
   }
+
+  // ⭐ TODAY'S DEAL card at the top
+  const deal = dailyDeal();
+  const it = deal.item;
+  let dealBtn;
+  if (game.owned[it.id]) {
+    dealBtn = '<button class="shopBtn equipped">Owned ✓</button>';
+  } else if (game.coins >= deal.price) {
+    dealBtn = '<button class="shopBtn deal" data-dealbuy="' + it.id + '">Buy · 🪙 ' + deal.price + '</button>';
+  } else {
+    dealBtn = '<button class="shopBtn cant">🪙 ' + deal.price + '</button>';
+  }
+  let html = '<div class="shopItem dealItem"><div style="font-size:24px">' + it.icon + '</div>'
+    + '<div class="grow"><div class="name">⭐ Today\'s Deal — ' + it.name + '</div>'
+    + '<div class="desc"><s>🪙 ' + it.price + '</s> · 50% OFF! · new deal tomorrow</div></div>'
+    + dealBtn + '</div>';
+
   // the default Ocean theme is always owned, so you can switch back
-  let html = shopRow({ id: 'theme_ocean', icon: '🌊', name: 'Ocean Theme', desc: 'The classic look', price: 0, kind: 'theme', theme: 'ocean' }, true);
+  html += shopRow({ id: 'theme_ocean', icon: '🌊', name: 'Ocean Theme', desc: 'The classic look', price: 0, kind: 'theme', theme: 'ocean' }, true);
   for (const item of SHOP_ITEMS) html += shopRow(item, game.owned[item.id]);
+  // EXCLUSIVE earned theme — appears only once you've unlocked it
+  if (game.owned.theme_streaklord) {
+    html += shopRow({ id: 'theme_streaklord', icon: '🔥', name: 'Streak Lord Theme',
+      desc: 'Earned at a 30-day streak — not for sale!', price: 0, kind: 'theme', theme: 'streaklord' }, true);
+  }
   list.innerHTML = html;
 }
 
@@ -1533,18 +1659,50 @@ function renderShop() {
 document.getElementById('shopList').addEventListener('click', (e) => {
   const equipTheme = e.target.dataset.equip;
   if (equipTheme) { applyTheme(equipTheme); render(); return; }
+  // daily-deal buy (discounted price)
+  const dealBuyId = e.target.dataset.dealbuy;
+  if (dealBuyId) {
+    const deal = dailyDeal();
+    if (deal.item.id === dealBuyId) buyItem(deal.item, deal.price);  // guard: day didn't flip mid-click
+    return;
+  }
+  // regular buy (full price)
   const buyId = e.target.dataset.buy;
   if (!buyId) return;
   const item = SHOP_ITEMS.find(i => i.id === buyId);
-  if (!item || game.owned[item.id] || game.coins < item.price) return;
-  game.coins -= item.price;              // pay first, always
-  game.owned[item.id] = true;
-  if (item.kind === 'theme') applyTheme(item.theme);
-  if (item.id === 'colors_pack') buildColorRow();
-  render();                              // updates everything + autosaves
+  if (item) buyItem(item, item.price);
 });
 
 // the daily login reward — once per real day
+// ----- UX JUICE: toast + confetti -----
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('on'), 2200);
+}
+const CONFETTI_COLORS = ['#7dc4ff', '#9be8b7', '#ffd54a', '#ff8cb4', '#c88cff', '#ffab70'];
+function confettiBurst() {
+  const app = document.getElementById('app');
+  for (let i = 0; i < 24; i++) {
+    const bit = document.createElement('div');
+    bit.className = 'confetti';
+    bit.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    bit.style.left = (40 + Math.random() * 20) + '%';   // burst from center-ish
+    bit.style.top = '38%';
+    bit.style.marginLeft = (Math.random() * 200 - 100) + 'px';
+    bit.style.animationDelay = (Math.random() * 0.15) + 's';
+    app.appendChild(bit);
+    setTimeout(() => bit.remove(), 1400);
+  }
+}
+
+// streak milestones: extra coins at 7/14/30 days, plus an EXCLUSIVE
+// theme at 30 that money can't buy — the flex reward for loyalty.
+const STREAK_MILESTONES = { 7: 50, 14: 100, 30: 200 };
+
 function dailyReward() {
   const today = todayKey();
   if (game.lastLogin === today) return;              // already claimed
@@ -1552,8 +1710,22 @@ function dailyReward() {
   game.streak = (game.lastLogin === todayPlus(-1)) ? game.streak + 1 : 1;
   game.lastLogin = today;
   game.coins += 10;
-  document.getElementById('rewardTitle').textContent = '+10 Plan Coins!';
-  document.getElementById('rewardSub').textContent = '🔥 ' + game.streak + '-day login streak';
+
+  let title = '+10 Plan Coins!';
+  let sub = '🔥 ' + game.streak + '-day login streak';
+  const bonus = STREAK_MILESTONES[game.streak];
+  if (bonus) {                                       // hit a milestone today!
+    game.coins += bonus;
+    title = '🎉 ' + game.streak + '-DAY STREAK! +' + (10 + bonus) + ' coins';
+    sub = 'Milestone bonus unlocked!';
+    if (game.streak >= 30 && !game.owned.theme_streaklord) {
+      game.owned.theme_streaklord = true;
+      sub = 'You earned the exclusive 🔥 Streak Lord theme!';
+    }
+    confettiBurst();
+  }
+  document.getElementById('rewardTitle').textContent = title;
+  document.getElementById('rewardSub').textContent = sub;
   document.getElementById('rewardOverlay').classList.add('on');
   render();                                          // shows new balance + saves
 }
@@ -1938,6 +2110,9 @@ async function initCloud() {
     }
 
     cloudSignOutFn = () => authMod.signOut(auth).catch(() => {});
+    cloudDeleteFn = () => cloudUser
+      ? dbMod.deleteDoc(dbMod.doc(db, 'planners', cloudUser.uid))
+      : Promise.resolve();
 
     gBtn.addEventListener('click', async () => {
       try {

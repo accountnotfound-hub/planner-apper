@@ -421,6 +421,10 @@
                       border: 1px solid #2c3352; border-radius: 8px; padding: 9px 0;
                       font-family: inherit; font-weight: 800; font-size: 12px; cursor: pointer; }
   .presetRow button.active { background: #2e5c8c; color: #bfe0ff; border-color: #2e5c8c; }
+  .customRow { display: flex; gap: 8px; margin-top: 8px; }
+  .customRow input { flex: 1; min-width: 0; }
+  .customRow button { background: #2e8cdc; color: #fff; border: none; border-radius: 8px;
+                      padding: 0 18px; font-family: inherit; font-weight: 800; font-size: 13px; cursor: pointer; }
   .cardItem { background: #161a2c; border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
               display: flex; align-items: center; gap: 8px; }
   .cardItem .grow { flex: 1; min-width: 0; }
@@ -750,6 +754,11 @@
         <button data-min="90">1h 30m</button>
         <button data-min="120">2h</button>
         <button data-min="180">3h</button>
+      </div>
+      <div class="presetLabel">Or type your own limit (up to 6h):</div>
+      <div class="customRow">
+        <input id="customFocus" type="text" inputmode="text" placeholder="e.g. 75, 1h30, or 2h" maxlength="8">
+        <button id="customFocusBtn">Set</button>
       </div>
       <div class="lenRow">
         <label>Fine-tune focus</label>
@@ -2657,6 +2666,43 @@ document.querySelectorAll('#focusPresets button').forEach(b => {
     persist();
     showToast('⏱ Focus set to ' + fmtDur(game.focusMin));
   });
+});
+
+// CUSTOM LIMIT: read whatever the user typed and turn it into minutes.
+// We accept lots of natural forms so nobody has to guess the format:
+//   "75" or "75m" → 75 min   ·   "2h" → 120   ·   "1h30" / "1h 30m" → 90
+//   "1:45" → 105.  Anything unparseable returns null so we can warn.
+function parseDuration(str) {
+  str = String(str).trim().toLowerCase();
+  if (!str) return null;
+  let mins = 0;
+  if (str.indexOf(':') !== -1) {                       // "1:45"
+    const p = str.split(':');
+    mins = (Number(p[0]) || 0) * 60 + (Number(p[1]) || 0);
+  } else if (str.indexOf('h') !== -1) {                // "2h", "1h30", "1h 30m"
+    const hm = str.match(/(\d+)\s*h\s*(\d+)?/);
+    if (hm) mins = (Number(hm[1]) || 0) * 60 + (Number(hm[2]) || 0);
+  } else {                                             // "75", "75m", "90 min"
+    mins = Number(str.replace(/[^\d]/g, '')) || 0;
+  }
+  if (!mins || mins < 1) return null;
+  return Math.min(360, Math.max(1, Math.round(mins)));  // clamp to 1 min … 6 h
+}
+function applyCustomFocus() {
+  const input = document.getElementById('customFocus');
+  const mins = parseDuration(input.value);
+  if (mins === null) { showToast('Try a time like 75, 1h30, or 2h'); return; }
+  game.focusMin = mins;
+  timerMode = 'focus';
+  if (!timerRunning) timerRemaining = timerTotalFor('focus');
+  paintTimer();
+  persist();
+  input.value = '';
+  showToast('⏱ Focus set to ' + fmtDur(mins));
+}
+document.getElementById('customFocusBtn').addEventListener('click', applyCustomFocus);
+document.getElementById('customFocus').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); applyCustomFocus(); }
 });
 
 // ----- flashcards: add, list, delete -----

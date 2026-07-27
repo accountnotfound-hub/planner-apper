@@ -415,6 +415,12 @@
   .lenRow button { width: 32px; height: 32px; border: none; border-radius: 8px;
                    background: #262b44; color: #eef0f8; font-weight: 800; font-size: 16px; cursor: pointer; }
   .lenRow .val { width: 46px; text-align: center; font-weight: 800; }
+  .presetLabel { font-size: 11px; color: #8b92ad; margin: 12px 0 6px; }
+  .presetRow { display: flex; flex-wrap: wrap; gap: 6px; }
+  .presetRow button { flex: 1 1 28%; background: #262b44; color: #cdd3ea;
+                      border: 1px solid #2c3352; border-radius: 8px; padding: 9px 0;
+                      font-family: inherit; font-weight: 800; font-size: 12px; cursor: pointer; }
+  .presetRow button.active { background: #2e5c8c; color: #bfe0ff; border-color: #2e5c8c; }
   .cardItem { background: #161a2c; border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
               display: flex; align-items: center; gap: 8px; }
   .cardItem .grow { flex: 1; min-width: 0; }
@@ -736,8 +742,17 @@
         <button id="timerStart">▶ Start</button>
         <button id="timerReset">↺ Reset</button>
       </div>
+      <div class="presetLabel">Quick set focus time:</div>
+      <div class="presetRow" id="focusPresets">
+        <button data-min="25">25m</button>
+        <button data-min="45">45m</button>
+        <button data-min="60">1h</button>
+        <button data-min="90">1h 30m</button>
+        <button data-min="120">2h</button>
+        <button data-min="180">3h</button>
+      </div>
       <div class="lenRow">
-        <label>Focus length</label>
+        <label>Fine-tune focus</label>
         <button data-len="focus" data-dir="-1">−</button>
         <div class="val"><span id="focusVal">25</span>m</div>
         <button data-len="focus" data-dir="1">+</button>
@@ -1339,9 +1354,12 @@ const TUT_STEPS = [
   { page: 'tasks', target: '#taskForm',
     title: '✅ Add your tasks',
     text: 'Anything you need to finish goes here. Slide the day, month and year, set a time, and watch the "Due:" line update live. Tick the box when it\'s done — overdue tasks turn red.' },
+  { page: 'today', target: '#studyBtn',
+    title: '📚 Study mode',
+    text: 'Tap the book for a focus timer — quick-set anything from 25 minutes up to 3 hours, study in sprints, and earn Plan Coins for finishing. There are self-test flashcards too: add your own questions and quiz yourself before an exam.' },
   { page: 'today', target: '#settingsBtn',
     title: '⚙ Settings',
-    text: 'Everything else lives behind this gear: set up alarms for tasks and activities, change your password, back up your data, and log out.' },
+    text: 'Everything else lives behind this gear: set up alarms and notifications (so reminders reach you even in a background tab), change your password, back up your data, and log out.' },
   { page: 'today', target: 'nav button[data-page="today"]',
     title: '🎉 That\'s it!',
     text: 'You\'re ready. Replace the sample data with your real week. And if you ever forget how something works, tap the ? up top to replay this tour.' },
@@ -2525,8 +2543,20 @@ let timerRunning = false;
 let timerTick = null;
 
 function fmtTime(sec) {
-  const m = Math.floor(sec / 60), s = sec % 60;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  // show the hours slot only when the session is an hour or longer,
+  // e.g. 25:00 for a short sprint but 2:00:00 for a long study block
+  if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
   return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+// turn a number of minutes into a friendly label: 90 → "1h 30m"
+function fmtDur(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h && m) return h + 'h ' + m + 'm';
+  if (h) return h + 'h';
+  return m + 'm';
 }
 function timerTotalFor(mode) {
   return (mode === 'focus' ? (game.focusMin || 25) : (game.breakMin || 5)) * 60;
@@ -2541,6 +2571,9 @@ function paintTimer() {
   startBtn.classList.toggle('running', timerRunning);
   document.getElementById('focusVal').textContent = game.focusMin || 25;
   document.getElementById('breakVal').textContent = game.breakMin || 5;
+  // light up the preset chip that matches the current focus length
+  document.querySelectorAll('#focusPresets button').forEach(b =>
+    b.classList.toggle('active', Number(b.dataset.min) === (game.focusMin || 25)));
 }
 function resetTimer() {
   timerRunning = false;
@@ -2599,13 +2632,30 @@ document.querySelectorAll('.lenRow button').forEach(b => {
   b.addEventListener('click', () => {
     const which = b.dataset.len, dir = Number(b.dataset.dir);
     if (which === 'focus') {
-      game.focusMin = Math.min(90, Math.max(5, (game.focusMin || 25) + dir * 5));
+      // step by 15 min once you're past an hour, else 5 — so climbing
+      // to 3h+ isn't dozens of taps. Ceiling is 6 hours.
+      const cur = game.focusMin || 25;
+      const step = cur >= 60 ? 15 : 5;
+      game.focusMin = Math.min(360, Math.max(5, cur + dir * step));
     } else {
-      game.breakMin = Math.min(30, Math.max(1, (game.breakMin || 5) + dir));
+      game.breakMin = Math.min(60, Math.max(1, (game.breakMin || 5) + dir));
     }
     if (!timerRunning) timerRemaining = timerTotalFor(timerMode);   // don't disturb a running clock
     paintTimer();
     persist();
+  });
+});
+
+// QUICK PRESETS: one tap sets a common study length (25m … 3h).
+// You can still fine-tune with the − / + after picking one.
+document.querySelectorAll('#focusPresets button').forEach(b => {
+  b.addEventListener('click', () => {
+    game.focusMin = Number(b.dataset.min);
+    timerMode = 'focus';                               // presets are for focus sprints
+    if (!timerRunning) timerRemaining = timerTotalFor('focus');
+    paintTimer();
+    persist();
+    showToast('⏱ Focus set to ' + fmtDur(game.focusMin));
   });
 });
 

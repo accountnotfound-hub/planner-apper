@@ -429,6 +429,7 @@
     <div id="proofSub"></div>
     <input type="file" id="proofFile" accept="image/*" capture="environment">
     <img id="proofImg" alt="proof photo">
+    <button id="proofShareBtn" style="display:none;border:none;border-radius:12px;padding:10px 28px;background:#2e8cdc;color:white;font-family:inherit;font-weight:800;font-size:14px;cursor:pointer;">📤 Share photo</button>
     <button id="proofCancel">Cancel</button>
   </div>
 
@@ -535,6 +536,7 @@
     <div id="loginMsg"></div>
     <button id="loginBtn">Log in</button>
     <button id="signupBtn">Create account</button>
+    <button id="googleBtn" style="background:white;color:#333;">Continue with Google</button>
     <div id="storageNote"></div>
   </div>
 
@@ -553,6 +555,20 @@
 </div>
 
 <script>
+// ------------------------------------------------------------
+// PART 0: FIREBASE — the app's registration with Google.
+// These values are an ADDRESS, not a secret: the real security
+// is the Authorized Domains list + the Firestore rules.
+// ------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyD7SGyS17lwEAaKAMXPm1FyZ4HQYL1Y9kg",
+  authDomain: "planner-apper.firebaseapp.com",
+  projectId: "planner-apper",
+  storageBucket: "planner-apper.firebasestorage.app",
+  messagingSenderId: "110542826905",
+  appId: "1:110542826905:web:b02fb41b8af19df6bf7708"
+};
+
 // ------------------------------------------------------------
 // PART 1: THE DATA — the whole app is these two arrays.
 // An "activity" is anything that repeats weekly (a class, gym,
@@ -588,6 +604,12 @@ let game = defaultGame();
 // parental controls: null = off; when on, holds the parent's
 // password hash. Saved per-account like everything else.
 let parental = null;
+
+// Google cloud login: set when someone signs in with Google.
+// Their data lives in Firestore instead of this device's drawer.
+let cloudUser = null;      // { uid, name }
+let cloudSaveFn = null;    // plugged in by initCloud()
+let cloudSignOutFn = null;
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -702,8 +724,9 @@ function taskCard(task) {
 function render() {
   document.getElementById('dateLine').textContent =
     todayName() + ', ' + new Date().toLocaleDateString()
-    + (isDevUser ? '  ·  🛠 DEV MODE' : '');
-  document.getElementById('coinLine').textContent = currentUser
+    + (isDevUser ? '  ·  🛠 DEV MODE' : '')
+    + (cloudUser ? '  ·  👤 ' + cloudUser.name : '');
+  document.getElementById('coinLine').textContent = (currentUser || cloudUser)
     ? '🪙 ' + game.coins + '  ·  🔥 ' + game.streak + '-day streak' : '';
   renderShop();
   // Parent tab: show setup view or active view
@@ -1055,6 +1078,7 @@ let alarmCfg = { enabled: true, sound: 'beep', volume: 0.6, before: 5 };
 
 // called by render() after every change: quietly saves your data
 function persist() {
+  if (cloudUser && cloudSaveFn) { cloudSaveFn(); return; }  // Google users → cloud
   if (!currentUser) return;
   const users = getUsers();
   if (!users[currentUser]) return;
@@ -1189,7 +1213,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   // account that logs in can import everything with one tap
   try {
     localStorage.setItem('myPlannerLastBackup', JSON.stringify({
-      from: currentUser,
+      from: currentUser || (cloudUser ? cloudUser.name : '?'),
       when: new Date().toLocaleString(),
       data: { activities: activities, tasks: tasks, nextId: nextId, alarm: alarmCfg, game: game, parental: parental },
     }));
@@ -1197,6 +1221,12 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   currentUser = null;
   // forget the session — logging out should MEAN logged out
   try { localStorage.removeItem('myPlannerSession'); } catch (e) {}
+  // Google users also sign out of Google, THEN reload
+  if (cloudUser && cloudSignOutFn) {
+    cloudUser = null;
+    cloudSignOutFn().then(() => location.reload(), () => location.reload());
+    return;
+  }
   location.reload();
 });
 
@@ -1297,7 +1327,7 @@ function toMinutes(hhmm) {
 }
 function checkAlarms() {
   if (!alarmCfg.enabled) return;
-  if (!currentUser) return;
+  if (!currentUser && !cloudUser) return;
   if (alarmOverlay.classList.contains('on')) return;
   const now = new Date();
   const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -1573,7 +1603,7 @@ document.getElementById('ringFile').addEventListener('change', (e) => {
 // account into THIS one. Asks first — it replaces what's here.
 document.getElementById('importBackupBtn').addEventListener('click', () => {
   const backup = getLastBackup();
-  if (!backup || !currentUser) return;
+  if (!backup || (!currentUser && !cloudUser)) return;
   if (!confirm('Replace everything in THIS account with the backup from "'
     + backup.from + '" (' + backup.when + ')?')) return;
   const d = backup.data;
@@ -1606,6 +1636,7 @@ function openProofCapture(taskId) {
     'Snap a photo of your finished work to mark this task done.';
   document.getElementById('proofFile').style.display = 'block';
   document.getElementById('proofImg').style.display = 'none';
+  document.getElementById('proofShareBtn').style.display = 'none';
   document.getElementById('proofCancel').textContent = 'Cancel';
   proofOverlay.classList.add('on');
 }
@@ -1613,15 +1644,43 @@ function viewProof(taskId) {
   const t = tasks.find(x => x.id === taskId);
   if (!t || !t.proof) return;
   pendingProofTaskId = null;                    // view mode, not capture mode
+  viewingProofTask = t;
   document.getElementById('proofTitle').textContent = 'Proof photo 📷';
   document.getElementById('proofSub').textContent = '"' + t.title + '" — taken when it was completed.';
   document.getElementById('proofFile').style.display = 'none';
   const img = document.getElementById('proofImg');
   img.src = t.proof;
   img.style.display = 'block';
+  document.getElementById('proofShareBtn').style.display = 'block';
   document.getElementById('proofCancel').textContent = 'Close';
   proofOverlay.classList.add('on');
 }
+let viewingProofTask = null;
+
+// SHARE the photo: phones open the share sheet (Gmail, WhatsApp...)
+// with the image attached as a REAL file. Computers without share
+// support download the photo instead, ready to attach by hand.
+document.getElementById('proofShareBtn').addEventListener('click', async () => {
+  const t = viewingProofTask;
+  if (!t || !t.proof) return;
+  try {
+    const blob = await (await fetch(t.proof)).blob();       // dataURL → real file bytes
+    const file = new File([blob], 'proof-' + t.id + '.jpg', { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'My Planner — proof photo',
+        text: 'Proof for: ' + t.title,
+      });
+      return;
+    }
+  } catch (e) { /* user cancelled the share — that's fine */ }
+  // fallback: download the photo so it can be attached manually
+  const a = document.createElement('a');
+  a.href = t.proof;
+  a.download = 'proof-' + t.id + '.jpg';
+  a.click();
+});
 window.viewProof = viewProof;                   // task cards call it by name
 
 document.getElementById('proofCancel').addEventListener('click', () => {
@@ -1795,6 +1854,113 @@ try {
     enterApp(savedSession, false);
   }
 } catch (e) { /* storage blocked (previews) — normal login still works */ }
+
+// ------------------------------------------------------------
+// PART 13: GOOGLE LOGIN + CLOUD SYNC ☁️
+//
+// signInWithPopup opens GOOGLE'S OWN login window — this app
+// never sees the password; Google just hands back a verified
+// identity. The account's whole world then saves to Firestore
+// (Google's cloud database) at planners/<uid>, so the SAME
+// account works on every device. Google keeps you signed in
+// across visits automatically (onAuthStateChanged).
+//
+// Size rules of the cloud: one document holds max ~1MB. Proof
+// photos (~30KB each) usually fit; if they ever don't, we retry
+// the save without photos rather than losing tasks. The custom
+// ringtone (up to 1.5MB) never fits — it stays on each device.
+// ------------------------------------------------------------
+async function initCloud() {
+  const gBtn = document.getElementById('googleBtn');
+  try {
+    const appMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
+    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+    const dbMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    const fbApp = appMod.initializeApp(firebaseConfig);
+    const auth = authMod.getAuth(fbApp);
+    const db = dbMod.getFirestore(fbApp);
+
+    async function saveToCloud() {
+      if (!cloudUser) return;
+      const data = {
+        activities: activities, tasks: tasks, nextId: nextId,
+        alarm: alarmCfg, parental: parental,
+        game: Object.assign({}, game, { customSound: null }), // too big for the cloud
+        seenTut: true,
+      };
+      try {
+        await dbMod.setDoc(dbMod.doc(db, 'planners', cloudUser.uid), data);
+      } catch (err) {
+        // document over the 1MB limit? save without proof photos
+        try {
+          data.tasks = tasks.map(t => {
+            const c = Object.assign({}, t); delete c.proof; return c;
+          });
+          await dbMod.setDoc(dbMod.doc(db, 'planners', cloudUser.uid), data);
+        } catch (err2) { /* offline — the next change will retry */ }
+      }
+      // the ringtone stays on THIS device, keyed to this Google account
+      try {
+        if (game.customSound) localStorage.setItem('ringFor-' + cloudUser.uid, game.customSound);
+      } catch (e) {}
+    }
+
+    async function enterCloudApp(user) {
+      cloudUser = { uid: user.uid, name: user.displayName || user.email || 'Google user' };
+      currentUser = null;
+      isDevUser = false;
+      cloudSaveFn = saveToCloud;
+      let firstTime = true;
+      try {
+        const snap = await dbMod.getDoc(dbMod.doc(db, 'planners', user.uid));
+        if (snap.exists()) {
+          const d = snap.data();
+          activities = d.activities || [];
+          tasks = d.tasks || [];
+          nextId = d.nextId || 100;
+          if (d.alarm) alarmCfg = d.alarm;
+          game = Object.assign(defaultGame(), d.game || {});
+          parental = d.parental || null;
+          firstTime = !d.seenTut;
+        }
+      } catch (e) { /* offline first visit — sample data is fine */ }
+      // this device's stashed ringtone for this account, if any
+      try { game.customSound = localStorage.getItem('ringFor-' + user.uid) || game.customSound; } catch (e) {}
+      customAudio = null;
+      applyTheme(game.theme);
+      buildColorRow();
+      refreshSettingsUI();
+      document.getElementById('pinSection').style.display = 'none'; // Google handles their password
+      loginPage.classList.add('off');
+      render();
+      dailyReward();
+      if (firstTime) startTutorial();
+    }
+
+    cloudSignOutFn = () => authMod.signOut(auth).catch(() => {});
+
+    gBtn.addEventListener('click', async () => {
+      try {
+        const result = await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider());
+        enterCloudApp(result.user);
+      } catch (err) {
+        loginMsg.textContent = 'Google sign-in failed: ' + (err.code || err.message);
+      }
+    });
+
+    // already signed in from a previous visit? walk straight in —
+    // (unless a password account beat us to it on this device)
+    authMod.onAuthStateChanged(auth, (user) => {
+      if (user && !cloudUser && !currentUser) enterCloudApp(user);
+    });
+  } catch (e) {
+    // Firebase unreachable (offline / blocked) — the button explains
+    gBtn.addEventListener('click', () => {
+      loginMsg.textContent = 'Could not reach Google right now — password accounts still work!';
+    });
+  }
+}
+initCloud();
 </script>
 </body>
 </html>

@@ -845,6 +845,7 @@ function activityCard(a, showDay) {
   return '<div class="card" style="border-left-color:' + a.color + '">'
     + '<div><div class="name">' + a.name + '</div>'
     + '<div class="sub">' + (showDay ? a.day + ' · ' : '') + a.time + '</div></div>'
+    + '<button class="xbtn" onclick="renameActivity(' + a.id + ')" title="Rename">✎</button>'
     + '<button class="xbtn" onclick="deleteActivity(' + a.id + ')">✕</button>'
     + '</div>';
 }
@@ -952,6 +953,21 @@ function deleteActivity(id) {
   tasks = tasks.filter(t => t.activityId !== id);
   render();
 }
+// RENAME an activity — change its name WITHOUT deleting it or its tasks.
+// Same clean-language + length rules as adding one. Cancel = no change.
+function renameActivity(id) {
+  const a = activityById(id);
+  if (!a) return;
+  const input = prompt('Rename this activity:', a.name);
+  if (input === null) return;                     // hit Cancel — leave it be
+  const name = input.trim();
+  if (!name) return;                              // empty — ignore
+  if (name.length > 24) { showToast('Keep it under 24 characters'); return; }
+  if (hasBadWords(name)) { showToast("Let's keep it clean 😅"); return; }
+  a.name = name;                                  // change the DATA...
+  render();                                       // ...then redraw. Tasks stay linked by id.
+  showToast('✏️ Renamed');
+}
 function deleteTask(id) {
   tasks = tasks.filter(t => t.id !== id);
   render();
@@ -1012,6 +1028,7 @@ function celebrateTaskDone(t) {
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
 window.deleteActivity = deleteActivity;
+window.renameActivity = renameActivity;
 
 document.getElementById('activityForm').addEventListener('submit', (e) => {
   e.preventDefault();

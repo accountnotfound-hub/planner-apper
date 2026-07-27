@@ -309,7 +309,7 @@
   #signupBtn { background: #262b44; color: #7dc4ff; }
   #loginMsg { font-size: 13px; min-height: 18px; color: #ffb4c0; text-align: center; }
   #storageNote { font-size: 11px; color: #566; text-align: center; max-width: 280px; }
-  #settingsBtn, #shopBtn { background: #262b44; border: none; color: #8b92ad;
+  #settingsBtn, #shopBtn, #studyBtn { background: #262b44; border: none; color: #8b92ad;
                  width: 30px; height: 30px; border-radius: 50%;
                  font-size: 15px; cursor: pointer; margin-left: 6px; }
 
@@ -390,6 +390,60 @@
   }
   #alarmDismiss { background: #2e8cdc; color: white; }
   #alarmSnooze { background: #262b44; color: #cdd3ea; }
+
+  /* ===== STUDY page (focus timer + flashcards) ===== */
+  #studyPage {
+    position: absolute; inset: 0; z-index: 66;
+    background: linear-gradient(180deg, #171b2e, #10131f);
+    padding: 18px; overflow-y: auto; display: none;
+  }
+  #studyPage.on { display: block; animation: fadeUp 0.22s ease; }
+  .studyCard { background: #1c2138; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  #timerMode { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: 1px;
+               text-transform: uppercase; color: #7dc4ff; }
+  #timerMode.break { color: #7de8a0; }
+  #timerDisplay { text-align: center; font-size: 54px; font-weight: 800;
+                  margin: 4px 0 12px; letter-spacing: 2px; font-variant-numeric: tabular-nums; }
+  .timerBtns { display: flex; gap: 8px; }
+  .timerBtns button { flex: 1; border: none; border-radius: 10px; padding: 12px 0;
+                      font-family: inherit; font-weight: 800; font-size: 14px; cursor: pointer; }
+  #timerStart { background: #2e8cdc; color: #fff; }
+  #timerStart.running { background: #c98a2e; color: #241a08; }
+  #timerReset { background: #262b44; color: #cdd3ea; }
+  .lenRow { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: #cdd3ea; }
+  .lenRow label { flex: 1; }
+  .lenRow button { width: 32px; height: 32px; border: none; border-radius: 8px;
+                   background: #262b44; color: #eef0f8; font-weight: 800; font-size: 16px; cursor: pointer; }
+  .lenRow .val { width: 46px; text-align: center; font-weight: 800; }
+  .cardItem { background: #161a2c; border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
+              display: flex; align-items: center; gap: 8px; }
+  .cardItem .grow { flex: 1; min-width: 0; }
+  .cardItem .q { font-weight: 700; font-size: 14px; word-break: break-word; }
+  .cardItem .a { font-size: 12px; color: #8b92ad; margin-top: 2px; word-break: break-word; }
+  #testMeBtn { width: 100%; background: #7846dc; color: #fff; border: none; border-radius: 10px;
+               padding: 12px; font-family: inherit; font-weight: 800; font-size: 14px;
+               cursor: pointer; margin: 2px 0 12px; }
+
+  /* the quiz (takes over the screen during a self-test) */
+  #quizOverlay { position: absolute; inset: 0; z-index: 82;
+    background: linear-gradient(180deg, #171b2e, #10131f);
+    display: none; flex-direction: column; padding: 22px; }
+  #quizOverlay.on { display: flex; animation: fadeIn 0.22s ease; }
+  #quizProgress { font-size: 12px; color: #8b92ad; text-align: center; }
+  #quizCard { flex: 1; display: flex; flex-direction: column; justify-content: center;
+              align-items: center; gap: 16px; text-align: center; }
+  #quizQuestion { font-size: 24px; font-weight: 800; word-break: break-word; }
+  #quizAnswer { font-size: 18px; color: #7de8a0; display: none; word-break: break-word; }
+  #quizAnswer.show { display: block; }
+  #quizBtns { display: flex; flex-direction: column; gap: 8px; }
+  #quizBtns button { border: none; border-radius: 12px; padding: 14px;
+                     font-family: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+  #quizShowBtn { background: #2e8cdc; color: #fff; }
+  .gradeRow { display: flex; gap: 8px; }
+  .gradeRow button { flex: 1; }
+  #quizGotBtn { background: #1e4d33; color: #9be8b7; }
+  #quizMissBtn { background: #7c2334; color: #ffb4c0; }
+  #quizCloseBtn { background: #262b44; color: #cdd3ea; }
 </style>
 </head>
 
@@ -403,6 +457,7 @@
     </div>
     <div>
       <button id="helpBtn" title="Replay the tour">?</button>
+      <button id="studyBtn" title="Study">📚</button>
       <button id="shopBtn" title="Shop">🛒</button>
       <button id="settingsBtn" title="Settings">⚙</button>
     </div>
@@ -594,6 +649,12 @@
     </div>
     <div class="setRow"><div id="ringStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div></div>
 
+    <h2>🔔 Notifications</h2>
+    <div class="setRow">
+      <div id="notifStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div>
+      <button class="smallBtn" id="notifBtn">Enable</button>
+    </div>
+
     <div id="pinSection">
       <h2>🔑 Change Password</h2>
       <div class="setRow"><input id="curPin" type="password" placeholder="Current password" maxlength="40" style="flex:1"></div>
@@ -658,6 +719,69 @@
     <div id="alarmSub"></div>
     <button id="alarmDismiss">OK, I'm on it</button>
     <button id="alarmSnooze">Snooze 5 min</button>
+  </div>
+
+  <!-- ===== STUDY (focus timer + self-test, opens over everything) ===== -->
+  <div id="studyPage">
+    <div class="setHead">
+      <h1>📚 Study</h1>
+      <button id="closeStudy">✕</button>
+    </div>
+
+    <h2>⏱ Focus Timer</h2>
+    <div class="studyCard">
+      <div id="timerMode">Focus time</div>
+      <div id="timerDisplay">25:00</div>
+      <div class="timerBtns">
+        <button id="timerStart">▶ Start</button>
+        <button id="timerReset">↺ Reset</button>
+      </div>
+      <div class="lenRow">
+        <label>Focus length</label>
+        <button data-len="focus" data-dir="-1">−</button>
+        <div class="val"><span id="focusVal">25</span>m</div>
+        <button data-len="focus" data-dir="1">+</button>
+      </div>
+      <div class="lenRow">
+        <label>Break length</label>
+        <button data-len="break" data-dir="-1">−</button>
+        <div class="val"><span id="breakVal">5</span>m</div>
+        <button data-len="break" data-dir="1">+</button>
+      </div>
+      <p style="font-size:11px;color:#8b92ad;margin-top:10px;line-height:1.4;">
+        Study in focused sprints. Finish a focus sprint to earn 🪙 5 Plan Coins
+        (up to 20/day), then take your break. You'll get an alarm and a
+        notification when each sprint ends — even from a background tab.
+      </p>
+    </div>
+
+    <h2>🧠 Self-Test Flashcards</h2>
+    <div class="studyCard">
+      <form id="cardForm">
+        <input id="cardQ" placeholder="Question (e.g. Capital of France?)" maxlength="120">
+        <input id="cardA" placeholder="Answer (e.g. Paris)" maxlength="120">
+        <button type="submit">+ Add flashcard</button>
+      </form>
+      <button id="testMeBtn">🎯 Test me!</button>
+      <div id="cardList"></div>
+    </div>
+  </div>
+
+  <!-- ===== the QUIZ overlay (a self-test run) ===== -->
+  <div id="quizOverlay">
+    <div id="quizProgress"></div>
+    <div id="quizCard">
+      <div id="quizQuestion"></div>
+      <div id="quizAnswer"></div>
+    </div>
+    <div id="quizBtns">
+      <button id="quizShowBtn">Show answer</button>
+      <div class="gradeRow" id="quizGrade" style="display:none;">
+        <button id="quizMissBtn">Missed ✗</button>
+        <button id="quizGotBtn">Got it ✓</button>
+      </div>
+      <button id="quizCloseBtn">End test</button>
+    </div>
   </div>
 
   <!-- ===== the login page (shown first) ===== -->
@@ -736,7 +860,11 @@ function defaultGame() {
   // new players start with 100 coins — a welcome gift so the shop
   // feels alive from day one instead of weeks away
   return { coins: 100, streak: 0, lastLogin: '', owned: {}, theme: 'ocean',
-           taskCoinDay: '', taskCoinsToday: 0 };
+           taskCoinDay: '', taskCoinsToday: 0,
+           // STUDY: flashcards + timer prefs + a daily study-coin cap.
+           // Living inside `game` means they save to device AND cloud for free.
+           cards: [], focusMin: 25, breakMin: 5,
+           studyCoinDay: '', studyCoinsToday: 0 };
 }
 let game = defaultGame();
 // parental controls: null = off; when on, holds the parent's
@@ -1581,7 +1709,58 @@ function showAlarm(title, sub, key) {
   alarmOverlay.classList.add('on');
   playAlarmPattern();
   alarmLoop = setInterval(playAlarmPattern, 1400);
+  sendNotification(title, sub);          // also ping the OS, for background tabs
 }
+
+// ------------------------------------------------------------
+// NOTIFICATIONS 🔔 — reminders that appear even when this tab
+// isn't the one you're looking at. HONEST LIMIT: a true "app fully
+// closed" push needs a server (Firebase Cloud Messaging) to wake the
+// phone — that's a later upgrade. This reaches you whenever the app
+// is still open somewhere (a background tab), which covers task
+// alarms and the study timer well.
+// ------------------------------------------------------------
+function notifyReady() {
+  return ('Notification' in window) && Notification.permission === 'granted';
+}
+function sendNotification(title, body) {
+  if (!notifyReady()) return;
+  const opts = { body: body, icon: 'icon-192.png', badge: 'icon-192.png' };
+  try {
+    // the service worker's notification is the reliable one on phones;
+    // fall back to a plain page notification if the SW isn't ready.
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready
+        .then(reg => reg.showNotification(title, opts))
+        .catch(() => { try { new Notification(title, opts); } catch (e) {} });
+    } else {
+      new Notification(title, opts);
+    }
+  } catch (e) { /* notifications unsupported here — no harm */ }
+}
+function refreshNotifUI() {
+  const s = document.getElementById('notifStatus');
+  const b = document.getElementById('notifBtn');
+  if (!s || !b) return;
+  if (!('Notification' in window)) {
+    s.textContent = 'This browser has no notifications.'; b.style.display = 'none'; return;
+  }
+  b.style.display = '';
+  if (Notification.permission === 'granted') {
+    s.textContent = 'Notifications are ON ✓'; b.textContent = 'On ✓'; b.disabled = true; b.style.opacity = 0.6;
+  } else if (Notification.permission === 'denied') {
+    s.textContent = 'Blocked — turn them on in your browser settings.'; b.textContent = 'Blocked'; b.disabled = true; b.style.opacity = 0.6;
+  } else {
+    s.textContent = 'Get reminded even from a background tab.'; b.textContent = 'Enable'; b.disabled = false; b.style.opacity = 1;
+  }
+}
+document.getElementById('notifBtn').addEventListener('click', () => {
+  if (!('Notification' in window)) return;
+  Notification.requestPermission().then(() => {
+    refreshNotifUI();
+    if (notifyReady()) sendNotification('My Planner', "Notifications are on — I'll remind you here.");
+  });
+});
 function stopAlarm() {
   alarmOverlay.classList.remove('on');
   if (alarmLoop) { clearInterval(alarmLoop); alarmLoop = null; }
@@ -1668,6 +1847,7 @@ function refreshSettingsUI() {
     importBtn.disabled = true;
     importBtn.style.opacity = 0.5;
   }
+  refreshNotifUI();          // keep the 🔔 button's label in sync
 }
 
 function getLastBackup() {
@@ -2319,6 +2499,225 @@ document.getElementById('adminList').addEventListener('click', (e) => {
     delete users[del]; saveUsers(users);
   } else { return; }
   renderAdmin();
+});
+
+// ------------------------------------------------------------
+// PART 15: STUDY 📚 — a focus timer + self-test flashcards.
+// The timer is a tiny STATE MACHINE: it's in 'focus' mode or
+// 'break' mode, counting seconds down. Finishing a focus sprint
+// pays coins (capped daily), rings the alarm, and sends a
+// notification — then flips to a break, and back again.
+// Flashcards live in game.cards, so they save everywhere for free.
+// ------------------------------------------------------------
+const studyPage = document.getElementById('studyPage');
+const quizOverlay = document.getElementById('quizOverlay');
+
+// escape user text before putting it in innerHTML (a "<" would
+// otherwise break the card's layout — small but correct)
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+let timerMode = 'focus';          // 'focus' | 'break'
+let timerRemaining = 25 * 60;     // seconds left on the clock
+let timerRunning = false;
+let timerTick = null;
+
+function fmtTime(sec) {
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+function timerTotalFor(mode) {
+  return (mode === 'focus' ? (game.focusMin || 25) : (game.breakMin || 5)) * 60;
+}
+function paintTimer() {
+  document.getElementById('timerDisplay').textContent = fmtTime(timerRemaining);
+  const modeEl = document.getElementById('timerMode');
+  modeEl.textContent = timerMode === 'focus' ? 'Focus time' : 'Break time';
+  modeEl.classList.toggle('break', timerMode === 'break');
+  const startBtn = document.getElementById('timerStart');
+  startBtn.textContent = timerRunning ? '⏸ Pause' : '▶ Start';
+  startBtn.classList.toggle('running', timerRunning);
+  document.getElementById('focusVal').textContent = game.focusMin || 25;
+  document.getElementById('breakVal').textContent = game.breakMin || 5;
+}
+function resetTimer() {
+  timerRunning = false;
+  if (timerTick) { clearInterval(timerTick); timerTick = null; }
+  timerRemaining = timerTotalFor(timerMode);
+  paintTimer();
+}
+function startPauseTimer() {
+  if (timerRunning) {                       // pause
+    timerRunning = false;
+    if (timerTick) { clearInterval(timerTick); timerTick = null; }
+    paintTimer();
+    return;
+  }
+  getAudio();                               // this tap unlocks sound for later
+  timerRunning = true;
+  paintTimer();
+  timerTick = setInterval(() => {
+    timerRemaining -= 1;
+    if (timerRemaining <= 0) { timerDone(); return; }
+    document.getElementById('timerDisplay').textContent = fmtTime(timerRemaining);
+  }, 1000);
+}
+function timerDone() {
+  timerRunning = false;
+  if (timerTick) { clearInterval(timerTick); timerTick = null; }
+  if (timerMode === 'focus') {
+    confettiBurst();
+    rewardStudy();                          // pay coins (daily-capped)
+    showAlarm('📚 Focus sprint done!', 'Great work — take your break.', 'study-focus');
+    timerMode = 'break';
+  } else {
+    showAlarm('⏱ Break over!', 'Ready for another focus sprint?', 'study-break');
+    timerMode = 'focus';
+  }
+  timerRemaining = timerTotalFor(timerMode);
+  paintTimer();
+}
+// each finished focus sprint pays 5 coins, capped with the SAME
+// daily study cap the quiz uses — so neither can be farmed forever.
+function rewardStudy() {
+  const today = todayKey();
+  if (game.studyCoinDay !== today) { game.studyCoinDay = today; game.studyCoinsToday = 0; }
+  if (game.studyCoinsToday < 20) {
+    game.coins += 5; game.studyCoinsToday += 5;
+    showToast('📚 Focus done! +5 🪙');
+  } else {
+    showToast('📚 Focus done! (daily study coin cap reached)');
+  }
+  render();
+}
+
+document.getElementById('timerStart').addEventListener('click', startPauseTimer);
+document.getElementById('timerReset').addEventListener('click', resetTimer);
+document.querySelectorAll('.lenRow button').forEach(b => {
+  b.addEventListener('click', () => {
+    const which = b.dataset.len, dir = Number(b.dataset.dir);
+    if (which === 'focus') {
+      game.focusMin = Math.min(90, Math.max(5, (game.focusMin || 25) + dir * 5));
+    } else {
+      game.breakMin = Math.min(30, Math.max(1, (game.breakMin || 5) + dir));
+    }
+    if (!timerRunning) timerRemaining = timerTotalFor(timerMode);   // don't disturb a running clock
+    paintTimer();
+    persist();
+  });
+});
+
+// ----- flashcards: add, list, delete -----
+function renderCards() {
+  const list = document.getElementById('cardList');
+  const cards = game.cards || [];
+  if (!cards.length) {
+    list.innerHTML = '<div class="empty">No flashcards yet. Add a few, then hit Test me!</div>';
+    return;
+  }
+  list.innerHTML = cards.map(c =>
+    '<div class="cardItem"><div class="grow"><div class="q">' + escapeHtml(c.q) + '</div>'
+    + '<div class="a">' + escapeHtml(c.a) + '</div></div>'
+    + '<button class="xbtn" onclick="deleteCard(' + c.id + ')">✕</button></div>').join('');
+}
+function deleteCard(id) {
+  game.cards = (game.cards || []).filter(c => c.id !== id);
+  renderCards();
+  persist();
+}
+window.deleteCard = deleteCard;
+
+document.getElementById('cardForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const q = document.getElementById('cardQ').value.trim();
+  const a = document.getElementById('cardA').value.trim();
+  if (!q || !a) return;
+  if (hasBadWords(q) || hasBadWords(a)) { showToast("Let's keep it clean 😅"); return; }
+  if (!game.cards) game.cards = [];
+  game.cards.push({ id: nextId++, q: q, a: a });
+  document.getElementById('cardQ').value = '';
+  document.getElementById('cardA').value = '';
+  renderCards();
+  persist();
+  showToast('🧠 Flashcard added');
+});
+
+// ----- the quiz: shuffle the deck, one card at a time, tally score -----
+let quizDeck = [], quizIdx = 0, quizRight = 0;
+function startQuiz() {
+  const cards = game.cards || [];
+  if (cards.length < 1) { showToast('Add a flashcard first!'); return; }
+  quizDeck = cards.slice();
+  for (let i = quizDeck.length - 1; i > 0; i--) {   // Fisher–Yates shuffle
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = quizDeck[i]; quizDeck[i] = quizDeck[j]; quizDeck[j] = tmp;
+  }
+  quizIdx = 0; quizRight = 0;
+  showQuizCard();
+  quizOverlay.classList.add('on');
+}
+function showQuizCard() {
+  if (quizIdx >= quizDeck.length) { finishQuiz(); return; }
+  const c = quizDeck[quizIdx];
+  document.getElementById('quizProgress').textContent =
+    'Card ' + (quizIdx + 1) + ' of ' + quizDeck.length + '  ·  ✓ ' + quizRight;
+  document.getElementById('quizQuestion').textContent = c.q;
+  const ans = document.getElementById('quizAnswer');
+  ans.textContent = c.a; ans.classList.remove('show');
+  document.getElementById('quizShowBtn').style.display = 'block';
+  document.getElementById('quizGrade').style.display = 'none';
+}
+function revealAnswer() {
+  document.getElementById('quizAnswer').classList.add('show');
+  document.getElementById('quizShowBtn').style.display = 'none';
+  document.getElementById('quizGrade').style.display = 'flex';
+}
+function gradeCard(right) {
+  if (right) quizRight++;
+  quizIdx++;
+  showQuizCard();
+}
+function finishQuiz() {
+  const total = quizDeck.length;
+  const pct = total ? Math.round(quizRight / total * 100) : 0;
+  document.getElementById('quizProgress').textContent = 'Results';
+  document.getElementById('quizQuestion').textContent =
+    '🎉 ' + quizRight + ' / ' + total + ' correct (' + pct + '%)';
+  let extra = '';
+  // reward a strong score (80%+ on 3+ cards), sharing the daily study cap
+  if (pct >= 80 && total >= 3) {
+    const today = todayKey();
+    if (game.studyCoinDay !== today) { game.studyCoinDay = today; game.studyCoinsToday = 0; }
+    if (game.studyCoinsToday < 20) { game.coins += 5; game.studyCoinsToday += 5; extra = '  ·  +5 🪙'; }
+    confettiBurst();
+    render();
+  }
+  const ans = document.getElementById('quizAnswer');
+  ans.textContent = (pct >= 80 ? 'Great recall! 🔥'
+                    : pct >= 50 ? 'Getting there — run it again.'
+                    : "Keep studying — you've got this.") + extra;
+  ans.classList.add('show');
+  document.getElementById('quizShowBtn').style.display = 'none';
+  document.getElementById('quizGrade').style.display = 'none';
+}
+document.getElementById('quizShowBtn').addEventListener('click', revealAnswer);
+document.getElementById('quizGotBtn').addEventListener('click', () => gradeCard(true));
+document.getElementById('quizMissBtn').addEventListener('click', () => gradeCard(false));
+document.getElementById('quizCloseBtn').addEventListener('click', () => quizOverlay.classList.remove('on'));
+document.getElementById('testMeBtn').addEventListener('click', startQuiz);
+
+// open / close the Study page from the header 📚 button
+document.getElementById('studyBtn').addEventListener('click', () => {
+  settingsPage.classList.remove('on');
+  if (!timerRunning) timerRemaining = timerTotalFor(timerMode);   // fresh clock unless one's running
+  paintTimer();
+  renderCards();
+  studyPage.classList.add('on');
+});
+document.getElementById('closeStudy').addEventListener('click', () => {
+  studyPage.classList.remove('on');
 });
 
 // register the service worker (the PWA helper) — safely, as always:

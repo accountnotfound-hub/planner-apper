@@ -290,6 +290,32 @@
     padding: 18px; overflow-y: auto; display: none;
   }
   #settingsPage.on { display: block; }
+
+  /* ===== admin panel (sits above settings) ===== */
+  #adminPage {
+    position: absolute; inset: 0; z-index: 68;
+    background: linear-gradient(180deg, #171b2e, #10131f);
+    padding: 18px; overflow-y: auto; display: none;
+  }
+  #adminPage.on { display: block; }
+  #closeAdmin { background: #262b44; border: none; color: #eef0f8;
+                width: 32px; height: 32px; border-radius: 50%;
+                font-size: 15px; cursor: pointer; }
+  .adminUser { background: #1c2138; border-radius: 12px; padding: 10px 12px;
+               margin-bottom: 8px; }
+  .adminUser.banned { border: 1px solid #7c2334; opacity: 0.75; }
+  .adminUser .top { display: flex; justify-content: space-between; align-items: center; }
+  .adminUser .who { font-weight: 800; font-size: 15px; }
+  .adminUser .meta { font-size: 12px; color: #8b92ad; margin-top: 2px; }
+  .adminUser .acts { display: flex; gap: 6px; margin-top: 8px; }
+  .adminUser .acts button { flex: 1; border: none; border-radius: 8px; padding: 7px 0;
+                            font-family: inherit; font-weight: 800; font-size: 11px; cursor: pointer; }
+  .aBan   { background: #7c2334; color: #ffb4c0; }
+  .aUnban { background: #2e5c8c; color: #bfe0ff; }
+  .aReset { background: #c98a2e; color: #241a08; }
+  .aDel   { background: #3a1622; color: #ff8cb4; }
+  .banTag { font-size: 10px; font-weight: 800; color: #ffb4c0;
+            background: #7c2334; padding: 2px 7px; border-radius: 99px; }
   .setHead { display: flex; justify-content: space-between; align-items: center; }
   .setHead h1 { font-size: 22px; }
   #closeSettings { background: #262b44; border: none; color: #eef0f8;
@@ -547,11 +573,26 @@
         <div class="setRow"><button class="smallBtn" id="devUnlockBtn" style="flex:1">🔓 Unlock ALL shop items</button></div>
         <div class="setRow"><button class="smallBtn" id="devCoinsBtn" style="flex:1">🪙 +500 coins</button></div>
         <div class="setRow"><button class="smallBtn" id="devResetBtn" style="flex:1;background:#7c2334;">♻ Reset my purchases</button></div>
+        <div class="setRow"><button class="smallBtn" id="adminOpenBtn" style="flex:1;background:#7846dc;">👑 Manage Accounts</button></div>
       </div>
     </div>
 
     <button id="logoutBtn">Log out</button>
     <button id="deleteAccBtn">🗑 Delete my account</button>
+  </div>
+
+  <!-- ===== ADMIN PANEL (dev-only, opens over Settings) ===== -->
+  <div id="adminPage">
+    <div class="setHead">
+      <h1>👑 Manage Accounts</h1>
+      <button id="closeAdmin">✕</button>
+    </div>
+    <p style="font-size:12px;color:#8b92ad;margin:6px 0;">
+      Password accounts saved on THIS device. (Passwords are hashed —
+      they can never be shown. Cloud accounts need the console step.)
+    </p>
+    <div id="adminStats" style="font-size:13px;color:#7dc4ff;font-weight:800;margin-bottom:8px;"></div>
+    <div id="adminList"></div>
   </div>
 
   <!-- ===== ALARM (takes over the screen when it's time) ===== -->
@@ -1247,6 +1288,7 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
 
   if (!users[name]) { loginMsg.textContent = 'No account with that name — create one!'; return; }
   const u = users[name];
+  if (u.banned) { loginMsg.textContent = '🚫 This account has been banned.'; return; }
   // new accounts have pinHash; OLD accounts (made before hashing
   // existed) still have a plain pin — accept it once, then upgrade
   // them to a hash on the spot. That's called a MIGRATION.
@@ -2007,6 +2049,71 @@ document.getElementById('devResetBtn').addEventListener('click', () => {
   refreshSettingsUI();
   render();
   document.getElementById('devMsg').textContent = 'Purchases reset ✓ — back to a fresh account view';
+});
+
+// ------------------------------------------------------------
+// PART 14: IN-APP ADMIN PANEL 👑 (dev-only, opened from Dev Panel)
+// Manages the password accounts saved on THIS device. Passwords
+// are hashed so they can NEVER be shown — you get ban, reset, and
+// delete instead, which is what moderation actually needs.
+// ------------------------------------------------------------
+const adminPage = document.getElementById('adminPage');
+
+function renderAdmin() {
+  const users = getUsers();
+  const names = Object.keys(users);
+  document.getElementById('adminStats').textContent =
+    names.length + ' account' + (names.length === 1 ? '' : 's') + ' on this device';
+  if (!names.length) {
+    document.getElementById('adminList').innerHTML =
+      '<div class="empty">No password accounts on this device yet.</div>';
+    return;
+  }
+  let html = '';
+  for (const name of names) {
+    const u = users[name];
+    const g = (u.data && u.data.game) || {};
+    const banned = !!u.banned;
+    html += '<div class="adminUser' + (banned ? ' banned' : '') + '">'
+      + '<div class="top"><div><div class="who">' + name
+      + (DEV_ACCOUNTS[name] ? ' 🛠' : '') + '</div>'
+      + '<div class="meta">🪙 ' + (g.coins || 0) + ' · 🔥 ' + (g.streak || 0)
+      + '-day · ' + ((u.data && u.data.tasks) ? u.data.tasks.length : 0) + ' tasks</div></div>'
+      + (banned ? '<span class="banTag">BANNED</span>' : '') + '</div>'
+      + '<div class="acts">'
+      + (banned
+          ? '<button class="aUnban" data-unban="' + name + '">Unban</button>'
+          : '<button class="aBan" data-ban="' + name + '">Ban</button>')
+      + '<button class="aReset" data-reset="' + name + '">Reset data</button>'
+      + '<button class="aDel" data-del="' + name + '">Delete</button>'
+      + '</div></div>';
+  }
+  document.getElementById('adminList').innerHTML = html;
+}
+
+document.getElementById('adminOpenBtn').addEventListener('click', () => {
+  renderAdmin();
+  adminPage.classList.add('on');
+});
+document.getElementById('closeAdmin').addEventListener('click', () => {
+  adminPage.classList.remove('on');
+});
+
+// one listener handles every ban/unban/reset/delete button
+document.getElementById('adminList').addEventListener('click', (e) => {
+  const users = getUsers();
+  const ban = e.target.dataset.ban, unban = e.target.dataset.unban,
+        reset = e.target.dataset.reset, del = e.target.dataset.del;
+  if (ban && users[ban]) { users[ban].banned = true; saveUsers(users); }
+  else if (unban && users[unban]) { delete users[unban].banned; saveUsers(users); }
+  else if (reset && users[reset]) {
+    if (!confirm('Wipe all data for "' + reset + '" (keeps the account, resets tasks/coins)?')) return;
+    users[reset].data = null; saveUsers(users);
+  } else if (del && users[del]) {
+    if (!confirm('Permanently DELETE the account "' + del + '"?')) return;
+    delete users[del]; saveUsers(users);
+  } else { return; }
+  renderAdmin();
 });
 
 // register the service worker (the PWA helper) — safely, as always:

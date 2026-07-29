@@ -5,7 +5,7 @@
 // that's what makes a web page feel like a real installed app,
 // and it's required for the Google Play packaging step.
 // ============================================================
-const CACHE = 'my-planner-v9';   // bump to v5, v6... when you update the app
+const CACHE = 'my-planner-v10';   // bump to v5, v6... when you update the app
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
  
 // install: save the app's files into the cache drawer

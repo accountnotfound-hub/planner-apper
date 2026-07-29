@@ -1128,6 +1128,9 @@ let cloudSetBanFn = null;     // admin: ban / unban a cloud account
 let cloudGiftFn = null;       // admin: drop coins in a friend's gift mailbox
 let cloudRegisterFn = null;   // report this device's password accounts to the registry
 let registrySyncMsg = 'not synced yet';   // shown in the admin panel for debugging
+let cloudDeviceGiftFn = null; // admin: gift coins to a password account by device+name
+let cloudDeviceBanFn = null;  // admin: ban/unban a password account by device+name
+let cloudDeviceSyncFn = null; // password login: claim gifts + obey cloud bans
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -1811,7 +1814,12 @@ function enterApp(username, firstTime) {
   // report this device's password accounts to the cloud registry so
   // the admin can see who signed up. Retries once if Firebase is
   // still warming up; fails silently offline (next login re-syncs).
-  const trySync = () => { if (cloudRegisterFn) cloudRegisterFn().catch(() => {}); };
+  const me = username;                     // captured for the delayed calls
+  const trySync = () => {
+    if (cloudRegisterFn) cloudRegisterFn().catch(() => {});
+    // obey cloud bans + claim any waiting gifts for THIS username
+    if (cloudDeviceSyncFn && currentUser === me) cloudDeviceSyncFn(me).catch(() => {});
+  };
   setTimeout(trySync, 1500);
   setTimeout(trySync, 8000);
 }
@@ -2813,11 +2821,15 @@ async function loadCloudAdmin() {
   if (!list.length) { box.innerHTML = '<div class="empty">No cloud sign-ups yet.</div>'; return; }
   let html = '';
   for (const a of list) {
-    // device (password) entries are read-only here: gifts and bans
-    // work through Firebase logins, which password accounts don't
-    // have — honest label instead of buttons that wouldn't work.
+    // both kinds get Give + Ban — password accounts route through the
+    // device mailbox (claimed / enforced at their next login)
     const acts = a.device
-      ? '<div class="meta" style="margin-top:6px;">🔑 password account — signed up on its own device</div>'
+      ? '<div class="acts">'
+        + '<button class="aGift" data-dgift="' + a.uid + '|' + a.name + '">🪙 Give</button>'
+        + (a.banned
+            ? '<button class="aUnban" data-dunban="' + a.uid + '|' + a.name + '">Unban</button>'
+            : '<button class="aBan" data-dban="' + a.uid + '|' + a.name + '">Ban</button>')
+        + '</div>'
       : '<div class="acts">'
         + '<button class="aGift" data-cgift="' + a.uid + '">🪙 Give</button>'
         + (a.banned
@@ -2848,6 +2860,27 @@ document.getElementById('adminCloud').addEventListener('click', async (e) => {
       await cloudGiftFn(giftUid, amt);
       alert('🎁 Gift stored! They\'ll receive ' + amt + ' coins next time they open the app.');
     } catch (err) { alert('Could not send — publish the gifts rule I gave you first.'); }
+    return;
+  }
+  // password-account gift: "deviceUid|username" packed in the dataset
+  const dGift = e.target.dataset.dgift;
+  if (dGift && cloudDeviceGiftFn) {
+    const parts = dGift.split('|');
+    const amt = Math.floor(Number(prompt('How many Plan Coins for "' + parts[1] + '"?', '50')));
+    if (!amt || amt <= 0) return;
+    try {
+      await cloudDeviceGiftFn(parts[0], parts[1], amt);
+      alert('🎁 Gift stored! "' + parts[1] + '" gets ' + amt + ' coins at their next login.');
+    } catch (err) { alert('Could not send — check the gifts rule.'); }
+    return;
+  }
+  // password-account ban/unban
+  const dBan = e.target.dataset.dban, dUnban = e.target.dataset.dunban;
+  if ((dBan || dUnban) && cloudDeviceBanFn) {
+    const parts = (dBan || dUnban).split('|');
+    try { await cloudDeviceBanFn(parts[0], parts[1], !!dBan); }
+    catch (err) { alert('Could not update — are you the admin?'); }
+    loadCloudAdmin();
     return;
   }
   const ban = e.target.dataset.cban, unban = e.target.dataset.cunban;
@@ -3336,14 +3369,74 @@ async function initCloud() {
       ? dbMod.deleteDoc(dbMod.doc(db, 'planners', cloudUser.uid))
       : Promise.resolve();
 
+    // ADMIN: gift coins to a PASSWORD account — goes into that
+    // device's mailbox under the username; claimed at their next login
+    cloudDeviceGiftFn = async (deviceUid, name, amount) => {
+      const patch = { users: {} };
+      patch.users[name] = dbMod.increment(amount);
+      await dbMod.setDoc(dbMod.doc(db, 'gifts', deviceUid), patch, { merge: true });
+    };
+    // ADMIN: ban/unban a PASSWORD account — a flag under the device's
+    // ban doc; the app checks it whenever that username logs in
+    cloudDeviceBanFn = async (deviceUid, name, ban) => {
+      const patch = { bannedUsers: {} };
+      patch.bannedUsers[name] = ban;
+      await dbMod.setDoc(dbMod.doc(db, 'bans', deviceUid), patch, { merge: true });
+    };
+    // PASSWORD LOGIN: obey cloud bans, then claim any waiting gifts
+    cloudDeviceSyncFn = async (username) => {
+      let u = auth.currentUser;
+      if (!u) { try { u = (await authMod.signInAnonymously(auth)).user; } catch (e) { return; } }
+      if (!u || !username) return;
+      // 1) ban check — banned means logged out, on every device
+      try {
+        const bSnap = await dbMod.getDoc(dbMod.doc(db, 'bans', u.uid));
+        if (bSnap.exists() && bSnap.data().bannedUsers
+            && bSnap.data().bannedUsers[username]) {
+          alert('🚫 This account has been banned.');
+          try { localStorage.removeItem('myPlannerSession'); } catch (e) {}
+          currentUser = null;
+          location.reload();
+          return;
+        }
+      } catch (e) { /* offline — checked again next login */ }
+      // 2) gift claim — take this username's coins, leave the rest
+      try {
+        const gSnap = await dbMod.getDoc(dbMod.doc(db, 'gifts', u.uid));
+        if (!gSnap.exists()) return;
+        const d = gSnap.data();
+        const mine = d.users && d.users[username];
+        if (!mine || mine <= 0) return;
+        game.coins += mine;
+        const rest = Object.assign({}, d.users);
+        delete rest[username];
+        const remaining = {};
+        if (d.coins) remaining.coins = d.coins;         // a Google gift on the same doc survives
+        if (Object.keys(rest).length) remaining.users = rest;
+        if (Object.keys(remaining).length) {
+          await dbMod.setDoc(dbMod.doc(db, 'gifts', u.uid), remaining);
+        } else {
+          await dbMod.deleteDoc(dbMod.doc(db, 'gifts', u.uid));
+        }
+        showToast('🎁 You received ' + mine + ' Plan Coins!');
+        confettiBurst();
+        render();
+      } catch (e) { /* offline — the gift waits patiently */ }
+    };
+
     // ADMIN: read the whole accounts registry + who's banned.
     // Returns null if the rules don't let this user (i.e. not admin).
     cloudAdminListFn = async () => {
       try {
         const accSnap = await dbMod.getDocs(dbMod.collection(db, 'accounts'));
         const banSnap = await dbMod.getDocs(dbMod.collection(db, 'bans'));
-        const banned = {};
-        banSnap.forEach(d => { banned[d.id] = true; });
+        const banned = {};       // google bans: uid → true
+        const banInfo = {};      // full ban docs (incl. per-username bans)
+        banSnap.forEach(d => {
+          const bd = d.data();
+          banInfo[d.id] = bd;
+          if (bd.banned) banned[d.id] = true;
+        });
         const list = [];
         accSnap.forEach(d => {
           const a = d.data();
@@ -3357,10 +3450,12 @@ async function initCloud() {
           if (a.passwordUsers) {
             for (const n in a.passwordUsers) {
               const p = a.passwordUsers[n];
+              const bi = banInfo[d.id];
               list.push({ uid: d.id, name: n, email: p.email || '',
                           coins: p.coins || 0, streak: p.streak || 0,
                           lastSeen: a.deviceSeen || a.lastSeen || '',
-                          banned: false, device: true });
+                          banned: !!(bi && bi.bannedUsers && bi.bannedUsers[n]),
+                          device: true });
             }
           }
         });
@@ -3415,6 +3510,14 @@ async function initCloud() {
         registrySyncMsg = '✓ synced ' + count + ' password account'
           + (count === 1 ? '' : 's') + ' at ' + new Date().toLocaleTimeString();
       } catch (err) {
+        void 0;
+        throw err;
+      }
+    };
+    // (split so the catch below stays the single place that reports)
+    const _oldRegister = cloudRegisterFn;
+    cloudRegisterFn = async () => {
+      try { await _oldRegister(); } catch (err) {
         // no more silent failures — the admin panel shows WHY
         registrySyncMsg = '✗ sync failed: ' + (err.code || err.message)
           + (String(err.code).includes('operation-not-allowed')

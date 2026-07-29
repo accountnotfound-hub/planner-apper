@@ -445,10 +445,19 @@
               padding: 6px !important; }
   #loginMsg { font-size: 13px; min-height: 18px; color: #ffb4c0; text-align: center; }
   #storageNote { font-size: 11px; color: #566; text-align: center; max-width: 280px; }
+  /* the header button cluster: one row that NEVER wraps — on a
+     narrow screen the buttons shrink slightly instead of stacking */
+  #hdrBtns { display: flex; align-items: center; gap: 6px;
+             flex-shrink: 0; flex-wrap: nowrap; }
   #settingsBtn, #shopBtn, #studyBtn { background: var(--panel); border: 1px solid var(--line);
                  color: var(--ink-dim);
                  width: 34px; height: 34px; border-radius: 50%;
-                 font-size: 15px; cursor: pointer; margin-left: 6px; }
+                 font-size: 15px; cursor: pointer; flex-shrink: 0; }
+  #helpBtn { flex-shrink: 0; }
+  @media (max-width: 380px) {
+    #hdrBtns { gap: 4px; }
+    #helpBtn, #settingsBtn, #shopBtn, #studyBtn { width: 30px; height: 30px; font-size: 13px; }
+  }
 
   /* ===== the settings page ===== */
   #settingsPage {
@@ -629,7 +638,7 @@
       <div id="dateLine"></div>
       <div id="coinLine"></div>
     </div>
-    <div>
+    <div id="hdrBtns">
       <button id="helpBtn" title="Replay the tour">?</button>
       <button id="studyBtn" title="Study">📚</button>
       <button id="shopBtn" title="Shop">🛒</button>

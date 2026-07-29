@@ -429,7 +429,20 @@
   }
   #loginBtn { background: linear-gradient(180deg, #3d9ceb, #2578c4); color: white;
               box-shadow: 0 6px 18px rgba(46, 140, 220, 0.4); }
-  #signupBtn { background: var(--panel); border: 1px solid var(--line); color: var(--accent); }
+  #signupBtn { background: linear-gradient(180deg, #58c07a, #35935b); color: white;
+               box-shadow: 0 6px 18px rgba(80, 170, 90, 0.35); }
+  /* the choice screen's two big doors */
+  #authChoice { display: flex; flex-direction: column; gap: 10px;
+                width: 100%; max-width: 280px; }
+  #chooseLogin { background: linear-gradient(180deg, #3d9ceb, #2578c4); color: white;
+                 box-shadow: 0 6px 18px rgba(46, 140, 220, 0.4); }
+  #chooseSignup { background: var(--panel); border: 1px solid var(--line); color: var(--accent); }
+  #authChoice button { width: 100%; border: none; border-radius: 12px; padding: 13px;
+                       font-family: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+  #chooseSignup { border: 1px solid var(--line); }
+  #authBack { background: none !important; box-shadow: none !important;
+              color: var(--ink-dim) !important; font-size: 13px !important;
+              padding: 6px !important; }
   #loginMsg { font-size: 13px; min-height: 18px; color: #ffb4c0; text-align: center; }
   #storageNote { font-size: 11px; color: #566; text-align: center; max-width: 280px; }
   #settingsBtn, #shopBtn, #studyBtn { background: var(--panel); border: 1px solid var(--line);
@@ -468,6 +481,7 @@
   .aUnban { background: #2e5c8c; color: #bfe0ff; }
   .aReset { background: #c98a2e; color: #241a08; }
   .aDel   { background: #3a1622; color: #ff8cb4; }
+  .aGift  { background: #3b3618; color: #ffd54a; }
   .banTag { font-size: 10px; font-weight: 800; color: #ffb4c0;
             background: #7c2334; padding: 2px 7px; border-radius: 99px; }
   .setHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -1002,6 +1016,14 @@
   <div id="loginPage">
     <h1><span class="logoMoji">📋</span> My Planner</h1>
     <div class="tag">Your schedule. Your tasks. Your app.</div>
+
+    <!-- STEP 1: pick your path. Each path then shows ONLY its own
+         fields — login never asks for email, signup requires it. -->
+    <div id="authChoice">
+      <button id="chooseLogin">Log in</button>
+      <button id="chooseSignup">Sign up</button>
+    </div>
+
     <input id="loginName" placeholder="Username" maxlength="16" autocomplete="off">
     <input id="loginPin" type="password" placeholder="Password (4+ characters)" maxlength="40">
     <input id="loginEmail" type="email" placeholder="Your email" maxlength="60" autocomplete="off" style="display:none;">
@@ -1010,6 +1032,7 @@
     <button id="loginBtn">Log in</button>
     <button id="signupBtn">Create account</button>
     <button id="googleBtn" style="background:white;color:#333;">Continue with Google</button>
+    <button id="authBack">← Back</button>
     <div id="storageNote"></div>
   </div>
 
@@ -1093,6 +1116,7 @@ let cloudSignOutFn = null;
 let cloudDeleteFn = null;  // erases this Google account's cloud data
 let cloudAdminListFn = null;  // admin: list ALL signed-up accounts
 let cloudSetBanFn = null;     // admin: ban / unban a cloud account
+let cloudGiftFn = null;       // admin: drop coins in a friend's gift mailbox
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -1775,22 +1799,36 @@ function enterApp(username, firstTime) {
   }
 }
 
-// TWO-MODE LOGIN: the screen starts in "log in" mode with just
-// username + password. The first tap on "Create account" switches
-// to signup mode (email appears, button confirms). One form that
-// asks only for what THIS action needs = far less confusion.
-let signupMode = false;
+// THREE-VIEW AUTH: choice → login OR signup. Each view shows only
+// its own fields, so login never asks for an email and signup
+// always requires one (that's how every account lands in your
+// admin list with an email attached).
+let authView = 'choice';
+function setAuthView(view) {
+  authView = view;
+  const show = (id, on, disp) =>
+    { document.getElementById(id).style.display = on ? (disp || 'block') : 'none'; };
+  const form = (view === 'login' || view === 'signup');
+  show('authChoice', view === 'choice', 'flex');
+  show('loginName', form);
+  show('loginPin', form);
+  show('loginEmail', view === 'signup');
+  show('showPwRow', form, 'flex');
+  show('loginBtn', view === 'login');
+  show('googleBtn', view === 'login');
+  show('signupBtn', view === 'signup');
+  show('authBack', view !== 'choice');
+  loginMsg.style.color = '#8b92ad';
+  loginMsg.textContent =
+    view === 'signup' ? 'Email is required to create an account.' : '';
+  if (form) setTimeout(() => document.getElementById('loginName').focus(), 60);
+}
+document.getElementById('chooseLogin').addEventListener('click', () => setAuthView('login'));
+document.getElementById('chooseSignup').addEventListener('click', () => setAuthView('signup'));
+document.getElementById('authBack').addEventListener('click', () => setAuthView('choice'));
+setAuthView('choice');                       // the front door
+
 document.getElementById('signupBtn').addEventListener('click', async () => {
-  if (!signupMode) {
-    signupMode = true;
-    document.getElementById('loginEmail').style.display = 'block';
-    document.getElementById('signupBtn').textContent = '✓ Create my account';
-    document.getElementById('loginBtn').textContent = '← I already have an account';
-    loginMsg.style.color = '#8b92ad';
-    loginMsg.textContent = 'Pick a username, a password (4+), and add your email.';
-    document.getElementById('loginName').focus();
-    return;
-  }
   loginMsg.style.color = '#ffb4c0';
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
@@ -1811,15 +1849,6 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('loginBtn').addEventListener('click', async () => {
-  // in signup mode this button becomes the way BACK to plain login
-  if (signupMode) {
-    signupMode = false;
-    document.getElementById('loginEmail').style.display = 'none';
-    document.getElementById('signupBtn').textContent = 'Create account';
-    document.getElementById('loginBtn').textContent = 'Log in';
-    loginMsg.textContent = '';
-    return;
-  }
   loginMsg.style.color = '#ffb4c0';
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
@@ -1902,7 +1931,7 @@ document.getElementById('deleteAccBtn').addEventListener('click', async () => {
 // pressing Enter in the PIN box = clicking Log in (small touch, feels right)
 document.getElementById('loginPin').addEventListener('keydown', (e) => {
   // Enter = the action you're in the middle of (login OR signup)
-  if (e.key === 'Enter') document.getElementById(signupMode ? 'signupBtn' : 'loginBtn').click();
+  if (e.key === 'Enter') document.getElementById(authView === 'signup' ? 'signupBtn' : 'loginBtn').click();
 });
 document.getElementById('loginEmail').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('signupBtn').click();
@@ -2727,6 +2756,7 @@ function renderAdmin() {
       + '-day · ' + ((u.data && u.data.tasks) ? u.data.tasks.length : 0) + ' tasks</div></div>'
       + (banned ? '<span class="banTag">BANNED</span>' : '') + '</div>'
       + '<div class="acts">'
+      + '<button class="aGift" data-gift="' + name + '">🪙 Give</button>'
       + (banned
           ? '<button class="aUnban" data-unban="' + name + '">Unban</button>'
           : '<button class="aBan" data-ban="' + name + '">Ban</button>')
@@ -2770,6 +2800,7 @@ async function loadCloudAdmin() {
       + '-day · seen ' + a.lastSeen + '</div></div>'
       + (a.banned ? '<span class="banTag">BANNED</span>' : '') + '</div>'
       + '<div class="acts">'
+      + '<button class="aGift" data-cgift="' + a.uid + '">🪙 Give</button>'
       + (a.banned
           ? '<button class="aUnban" data-cunban="' + a.uid + '">Unban</button>'
           : '<button class="aBan" data-cban="' + a.uid + '">Ban</button>')
@@ -2779,6 +2810,21 @@ async function loadCloudAdmin() {
 }
 
 document.getElementById('adminCloud').addEventListener('click', async (e) => {
+  // GIFT to a cloud account: the admin can't edit someone else's
+  // planner (the rules forbid it — good!), so the gift goes into a
+  // 'gifts' MAILBOX document instead. The friend's app claims it
+  // automatically the next time they open the app.
+  const giftUid = e.target.dataset.cgift;
+  if (giftUid) {
+    if (!cloudGiftFn) return;
+    const amt = Math.floor(Number(prompt('How many Plan Coins to gift?', '50')));
+    if (!amt || amt <= 0) return;
+    try {
+      await cloudGiftFn(giftUid, amt);
+      alert('🎁 Gift stored! They\'ll receive ' + amt + ' coins next time they open the app.');
+    } catch (err) { alert('Could not send — publish the gifts rule I gave you first.'); }
+    return;
+  }
   const ban = e.target.dataset.cban, unban = e.target.dataset.cunban;
   if ((!ban && !unban) || !cloudSetBanFn) return;
   try { await cloudSetBanFn(ban || unban, !!ban); }
@@ -2789,11 +2835,31 @@ document.getElementById('closeAdmin').addEventListener('click', () => {
   adminPage.classList.remove('on');
 });
 
-// one listener handles every ban/unban/reset/delete button
+// one listener handles every gift/ban/unban/reset/delete button
 document.getElementById('adminList').addEventListener('click', (e) => {
   const users = getUsers();
   const ban = e.target.dataset.ban, unban = e.target.dataset.unban,
-        reset = e.target.dataset.reset, del = e.target.dataset.del;
+        reset = e.target.dataset.reset, del = e.target.dataset.del,
+        gift = e.target.dataset.gift;
+  // GIVE COINS 🪙 — add straight into that account's saved game data
+  if (gift && users[gift]) {
+    const amt = Math.floor(Number(prompt('How many Plan Coins for "' + gift + '"?', '50')));
+    if (!amt || amt <= 0) return;
+    if (gift === currentUser) {
+      game.coins += amt;                       // gifting yourself: live data
+      render();
+    } else if (users[gift].data) {
+      users[gift].data.game = users[gift].data.game || {};
+      users[gift].data.game.coins = (users[gift].data.game.coins || 0) + amt;
+      saveUsers(users);
+    } else {
+      alert('That account hasn\'t opened the app yet — no data to add coins to.');
+      return;
+    }
+    showToast('🎁 Gave ' + amt + ' 🪙 to ' + gift);
+    renderAdmin();
+    return;
+  }
   if (ban && users[ban]) { users[ban].banned = true; saveUsers(users); }
   else if (unban && users[unban]) { delete users[unban].banned; saveUsers(users); }
   else if (reset && users[reset]) {
@@ -3208,6 +3274,22 @@ async function initCloud() {
           firstTime = !d.seenTut;
         }
       } catch (e) { /* offline first visit — sample data is fine */ }
+      // 🎁 CLAIM THE GIFT MAILBOX: if the admin left coins for this
+      // account, collect them, empty the mailbox, and celebrate.
+      try {
+        const giftSnap = await dbMod.getDoc(dbMod.doc(db, 'gifts', user.uid));
+        if (giftSnap.exists()) {
+          const gifted = giftSnap.data().coins || 0;
+          if (gifted > 0) {
+            game.coins += gifted;
+            await dbMod.deleteDoc(dbMod.doc(db, 'gifts', user.uid));
+            setTimeout(() => {
+              showToast('🎁 You received ' + gifted + ' Plan Coins from the devs!');
+              confettiBurst();
+            }, 900);
+          }
+        }
+      } catch (e) { /* no mailbox or rules not published — fine */ }
       // this device's stashed ringtone for this account, if any
       try { game.customSound = localStorage.getItem('ringFor-' + user.uid) || game.customSound; } catch (e) {}
       customAudio = null;
@@ -3248,6 +3330,12 @@ async function initCloud() {
     cloudSetBanFn = async (uid, ban) => {
       if (ban) await dbMod.setDoc(dbMod.doc(db, 'bans', uid), { banned: true });
       else await dbMod.deleteDoc(dbMod.doc(db, 'bans', uid));
+    };
+    // ADMIN: deposit coins in gifts/<uid>. increment() stacks gifts
+    // safely — two gifts before a claim add up instead of overwriting.
+    cloudGiftFn = async (uid, amount) => {
+      await dbMod.setDoc(dbMod.doc(db, 'gifts', uid),
+        { coins: dbMod.increment(amount) }, { merge: true });
     };
 
     gBtn.addEventListener('click', async () => {

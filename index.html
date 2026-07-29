@@ -24,11 +24,32 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <style>
+  /* ============================================================
+     DESIGN SYSTEM v2 — one place for the app's look. Change a
+     variable here and the WHOLE app follows. That's what design
+     "tokens" are: named decisions instead of scattered numbers.
+  ============================================================ */
+  :root {
+    --bg-deep: #0b0e1a;
+    --panel: rgba(255, 255, 255, 0.045);       /* glassy card surface */
+    --panel-solid: #1a1f33;
+    --line: rgba(255, 255, 255, 0.08);         /* hairline borders */
+    --ink: #eef0f8;
+    --ink-dim: #8b92ad;
+    --accent: #7dc4ff;
+    --gold: #ffd54a;
+    --danger: #ff6b7f;
+    --radius: 14px;
+    --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #0b0e1a;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    color: #eef0f8;
+    background:
+      radial-gradient(900px 500px at 15% -10%, rgba(125, 196, 255, 0.08), transparent 60%),
+      radial-gradient(800px 500px at 110% 110%, rgba(120, 70, 220, 0.10), transparent 60%),
+      var(--bg-deep);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--ink);
     display: flex; justify-content: center; align-items: center;
     min-height: 100vh;
   }
@@ -36,24 +57,36 @@
     width: min(420px, 100vw);
     height: min(800px, 100vh);
     background: linear-gradient(180deg, #171b2e, #10131f);
-    border-radius: 22px;
+    border-radius: 24px;
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
     display: flex; flex-direction: column;
     overflow: hidden;
     position: relative;          /* lets the tutorial overlay sit inside */
   }
-  header { padding: 16px 18px 8px; display: flex; justify-content: space-between; align-items: flex-start; }
-  h1 { font-size: 22px; }
-  #helpBtn { background: #262b44; border: none; color: #7dc4ff;
-             width: 30px; height: 30px; border-radius: 50%;
+  header { padding: 16px 18px 10px; display: flex; justify-content: space-between; align-items: flex-start; }
+  h1 { font-size: 22px; letter-spacing: 0.2px; }
+  /* round icon buttons in the header — glassy, with a hover lift */
+  #helpBtn { background: var(--panel); border: 1px solid var(--line); color: var(--accent);
+             width: 34px; height: 34px; border-radius: 50%;
              font-weight: 800; font-size: 15px; cursor: pointer; }
-  #dateLine { font-size: 13px; color: #8b92ad; margin-top: 2px; }
-  #coinLine { font-size: 13px; color: #ffd54a; font-weight: 800; margin-top: 3px; }
+  #helpBtn:hover, #shopBtn:hover, #settingsBtn:hover, #studyBtn:hover { filter: brightness(1.35); }
+  #dateLine { font-size: 12px; color: var(--ink-dim); margin-top: 3px; }
+  /* coins + streak as a little gold "chip" instead of bare text */
+  #coinLine { display: inline-block; font-size: 12.5px; color: var(--gold); font-weight: 800;
+              margin-top: 6px; padding: 3px 10px; border-radius: 99px;
+              background: rgba(255, 213, 74, 0.10);
+              border: 1px solid rgba(255, 213, 74, 0.25); }
+  #coinLine:empty { display: none; }
 
   /* ===== shop ===== */
   #shopBalance { font-size: 20px; font-weight: 800; color: #ffd54a; margin-top: 8px; }
   .shopItem {
-    background: #1c2138; border-radius: 12px; padding: 12px 14px;
-    margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 12px 14px;
+    margin-bottom: 9px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
   }
   .shopItem .grow { flex: 1; }
   .shopItem .name { font-weight: 800; font-size: 15px; }
@@ -90,9 +123,12 @@
 
   /* ===== toast (little slide-in message) ===== */
   #toast {
-    position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%) translateY(20px);
-    background: #1c2138; border: 1px solid #3a4166; color: #eef0f8;
-    padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(20px);
+    background: rgba(20, 25, 45, 0.92);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(125, 196, 255, 0.3); color: var(--ink);
+    padding: 10px 18px; border-radius: 99px; font-size: 13px; font-weight: 700;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     z-index: 90; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s;
     max-width: 88%; text-align: center;
   }
@@ -140,19 +176,45 @@
   .proofBtn { background: none; border: none; font-size: 15px;
               cursor: pointer; padding: 4px; }
 
+  /* the tab bar: icons above labels, and the active tab sits in a
+     soft glowing pill — instantly readable at a glance */
   nav {
-    display: flex; border-top: 1px solid #262b44;
-    background: #12152355;
+    display: flex; border-top: 1px solid var(--line);
+    background: rgba(10, 12, 22, 0.72);
+    backdrop-filter: blur(8px);
+    padding: 7px 8px 9px; gap: 6px;
   }
   nav button {
-    flex: 1; background: none; border: none; color: #8b92ad;
-    font-family: inherit; font-weight: 700; font-size: 13px;
-    padding: 12px 0 14px; cursor: pointer;
+    flex: 1; background: none; border: none; color: var(--ink-dim);
+    font-family: inherit; font-weight: 700; font-size: 11px;
+    padding: 7px 0 8px; cursor: pointer;
+    border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: background 0.15s ease, color 0.15s ease;
   }
-  nav button.active { color: #7dc4ff; }
+  nav button::before { font-size: 17px; line-height: 1; }
+  nav button[data-page="today"]::before  { content: '🏠'; }
+  nav button[data-page="week"]::before   { content: '🗓️'; }
+  nav button[data-page="tasks"]::before  { content: '✅'; }
+  nav button[data-page="parent"]::before { content: '🛡️'; }
+  nav button.active {
+    color: var(--accent);
+    background: rgba(125, 196, 255, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(125, 196, 255, 0.22);
+  }
 
   .page { flex: 1; overflow-y: auto; padding: 8px 16px 16px; display: none; }
   .page.active { display: block; animation: fadeUp 0.22s ease; }
+  /* slim, quiet scrollbars — the content is the star, not the chrome */
+  .page::-webkit-scrollbar, #settingsPage::-webkit-scrollbar,
+  #adminPage::-webkit-scrollbar, #studyPage::-webkit-scrollbar { width: 5px; }
+  .page::-webkit-scrollbar-thumb, #settingsPage::-webkit-scrollbar-thumb,
+  #adminPage::-webkit-scrollbar-thumb, #studyPage::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14); border-radius: 3px; }
+  .empty {
+    background: var(--panel); border: 1px dashed var(--line);
+    border-radius: var(--radius); margin: 2px 0;
+  }
 
   /* ===== global UX polish ===== */
   /* every button gets a tiny "press" so taps feel physical */
@@ -170,20 +232,30 @@
                font-size: 12px; color: #8b92ad; }
   #showPwRow input { width: 16px; height: 16px; }
 
-  h2 { font-size: 14px; color: #8b92ad; text-transform: uppercase;
-       letter-spacing: 1px; margin: 14px 0 8px; }
+  /* section headings get a small accent tick — quiet structure */
+  h2 { font-size: 12px; color: var(--ink-dim); text-transform: uppercase;
+       letter-spacing: 1.6px; margin: 16px 0 9px;
+       display: flex; align-items: center; gap: 8px; }
+  h2::before { content: ''; width: 4px; height: 12px; border-radius: 2px;
+               background: var(--accent); opacity: 0.85; }
 
   .card {
-    background: #1c2138; border-radius: 12px;
-    padding: 10px 12px; margin-bottom: 8px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 11px 13px; margin-bottom: 9px;
     border-left: 5px solid #7dc4ff;
     display: flex; justify-content: space-between; align-items: center;
     gap: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
   }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
   .card .name { font-weight: 700; font-size: 15px; }
-  .card .sub { font-size: 12px; color: #8b92ad; margin-top: 1px; }
-  .badge { font-size: 11px; font-weight: 800; padding: 3px 8px;
-           border-radius: 99px; background: #262b44; white-space: nowrap; }
+  .card .sub { font-size: 12px; color: var(--ink-dim); margin-top: 1px; }
+  .badge { font-size: 11px; font-weight: 800; padding: 3px 9px;
+           border-radius: 99px; background: rgba(255,255,255,0.07);
+           border: 1px solid var(--line); white-space: nowrap; }
   .badge.today   { background: #2e5c8c; color: #bfe0ff; }
   .badge.overdue { background: #7c2334; color: #ffb4c0; }
   .badge.done    { background: #1e4d33; color: #9be8b7; }
@@ -197,31 +269,43 @@
   .prio-low  { background: #7de8a0; }
 
   /* search + filter bar */
-  #taskSearch { background: #10131f; color: #eef0f8; border: 1px solid #2c3352;
-                border-radius: 10px; padding: 9px 12px; font-family: inherit; font-size: 13px; }
-  .filterBtn { flex: 1; background: #1c2138; color: #8b92ad; border: 1px solid #2c3352;
-               border-radius: 8px; padding: 7px 0; font-family: inherit; font-weight: 700;
-               font-size: 12px; cursor: pointer; }
-  .filterBtn.active { background: #2e5c8c; color: #bfe0ff; border-color: #2e5c8c; }
+  #taskSearch { background: rgba(0, 0, 0, 0.32); color: var(--ink); border: 1px solid #2c3352;
+                border-radius: 99px; padding: 9px 14px; font-family: inherit; font-size: 13px; }
+  .filterBtn { flex: 1; background: var(--panel); color: var(--ink-dim); border: 1px solid var(--line);
+               border-radius: 99px; padding: 7px 0; font-family: inherit; font-weight: 700;
+               font-size: 12px; cursor: pointer; transition: all 0.15s ease; }
+  .filterBtn.active { background: rgba(125, 196, 255, 0.16); color: var(--accent);
+                      border-color: rgba(125, 196, 255, 0.45); }
 
   .xbtn { background: none; border: none; color: #566; font-size: 16px;
-          cursor: pointer; padding: 4px; }
-  .checkbtn { width: 26px; height: 26px; border-radius: 8px;
+          cursor: pointer; padding: 4px; transition: color 0.15s ease; }
+  .xbtn:hover { color: var(--danger); }
+  .checkbtn { width: 27px; height: 27px; border-radius: 9px;
               border: 2px solid #3a4166; background: none; cursor: pointer;
-              font-size: 14px; color: #9be8b7; flex-shrink: 0; }
+              font-size: 14px; color: #9be8b7; flex-shrink: 0;
+              transition: border-color 0.15s ease, background 0.15s ease; }
+  .checkbtn:hover { border-color: #9be8b7; background: rgba(155, 232, 183, 0.1); }
+  .task-done .checkbtn { background: rgba(155, 232, 183, 0.15); border-color: #2e6b45; }
 
-  form { background: #161a2c; border-radius: 12px; padding: 10px;
-         display: flex; flex-direction: column; gap: 7px; margin-bottom: 10px; }
+  form { background: var(--panel); border: 1px solid var(--line);
+         border-radius: var(--radius); padding: 12px;
+         display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   input, select {
-    background: #10131f; color: #eef0f8;
-    border: 1px solid #2c3352; border-radius: 8px;
-    padding: 8px 10px; font-family: inherit; font-size: 13px;
+    background: rgba(0, 0, 0, 0.32); color: var(--ink);
+    border: 1px solid #2c3352; border-radius: 10px;
+    padding: 9px 11px; font-family: inherit; font-size: 13px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
+  input:focus, select:focus { box-shadow: 0 0 0 3px rgba(125, 196, 255, 0.15); }
+  /* primary buttons: a real gradient + press feedback */
   form button {
-    background: #2e8cdc; color: white; border: none; border-radius: 8px;
-    padding: 9px; font-family: inherit; font-weight: 800; font-size: 13px;
+    background: linear-gradient(180deg, #3d9ceb, #2578c4); color: white;
+    border: none; border-radius: 10px;
+    padding: 10px; font-family: inherit; font-weight: 800; font-size: 13px;
     cursor: pointer;
+    box-shadow: 0 4px 12px rgba(46, 140, 220, 0.35);
   }
+  form button:hover { filter: brightness(1.08); }
   .colorRow { display: flex; gap: 6px; }
   .colorRow button { flex: 1; height: 26px; border-radius: 8px; border: 2px solid transparent; }
   .colorRow button.picked { border-color: white; }
@@ -286,31 +370,42 @@
   /* ===== the login page ===== */
   #loginPage {
     position: absolute; inset: 0; z-index: 70;
-    background: linear-gradient(180deg, #171b2e, #10131f);
+    background:
+      radial-gradient(500px 300px at 50% -8%, rgba(125, 196, 255, 0.14), transparent 65%),
+      radial-gradient(420px 300px at 85% 105%, rgba(120, 70, 220, 0.14), transparent 60%),
+      linear-gradient(180deg, #171b2e, #10131f);
     display: flex; flex-direction: column;
     justify-content: center; align-items: center;
     gap: 10px; padding: 30px;
   }
   #loginPage.off { display: none; }
-  #loginPage h1 { font-size: 30px; }
-  #loginPage .tag { color: #8b92ad; font-size: 13px; margin-bottom: 14px; }
+  /* gradient-ink logo — the one place we're allowed to show off */
+  #loginPage h1 {
+    font-size: 32px;
+    background: linear-gradient(90deg, #7dc4ff, #c88cff 60%, #ffd54a);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  #loginPage .tag { color: var(--ink-dim); font-size: 13px; margin-bottom: 16px; }
   #loginPage input {
     width: 100%; max-width: 280px;
-    background: #10131f; color: #eef0f8;
-    border: 1px solid #2c3352; border-radius: 10px;
-    padding: 12px; font-family: inherit; font-size: 15px;
+    background: rgba(0, 0, 0, 0.35); color: var(--ink);
+    border: 1px solid #2c3352; border-radius: 12px;
+    padding: 13px; font-family: inherit; font-size: 15px;
   }
   #loginPage button {
     width: 100%; max-width: 280px;
-    border: none; border-radius: 10px; padding: 12px;
+    border: none; border-radius: 12px; padding: 13px;
     font-family: inherit; font-weight: 800; font-size: 15px; cursor: pointer;
   }
-  #loginBtn { background: #2e8cdc; color: white; }
-  #signupBtn { background: #262b44; color: #7dc4ff; }
+  #loginBtn { background: linear-gradient(180deg, #3d9ceb, #2578c4); color: white;
+              box-shadow: 0 6px 18px rgba(46, 140, 220, 0.4); }
+  #signupBtn { background: var(--panel); border: 1px solid var(--line); color: var(--accent); }
   #loginMsg { font-size: 13px; min-height: 18px; color: #ffb4c0; text-align: center; }
   #storageNote { font-size: 11px; color: #566; text-align: center; max-width: 280px; }
-  #settingsBtn, #shopBtn, #studyBtn { background: #262b44; border: none; color: #8b92ad;
-                 width: 30px; height: 30px; border-radius: 50%;
+  #settingsBtn, #shopBtn, #studyBtn { background: var(--panel); border: 1px solid var(--line);
+                 color: var(--ink-dim);
+                 width: 34px; height: 34px; border-radius: 50%;
                  font-size: 15px; cursor: pointer; margin-left: 6px; }
 
   /* ===== the settings page ===== */
@@ -359,9 +454,10 @@
                border-radius: 10px; padding: 12px; width: 100%;
                font-family: inherit; font-weight: 800; font-size: 14px;
                cursor: pointer; margin-top: 16px; }
-  .smallBtn { background: #2e8cdc; color: white; border: none;
-              border-radius: 8px; padding: 8px 14px; font-family: inherit;
-              font-weight: 800; font-size: 12px; cursor: pointer; }
+  .smallBtn { background: linear-gradient(180deg, #3d9ceb, #2578c4); color: white; border: none;
+              border-radius: 9px; padding: 8px 14px; font-family: inherit;
+              font-weight: 800; font-size: 12px; cursor: pointer;
+              box-shadow: 0 3px 10px rgba(46, 140, 220, 0.3); }
   #pinMsg { font-size: 12px; color: #9be8b7; min-height: 16px; }
 
   /* ===== the alarm overlay ===== */

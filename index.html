@@ -1126,6 +1126,8 @@ let cloudDeleteFn = null;  // erases this Google account's cloud data
 let cloudAdminListFn = null;  // admin: list ALL signed-up accounts
 let cloudSetBanFn = null;     // admin: ban / unban a cloud account
 let cloudGiftFn = null;       // admin: drop coins in a friend's gift mailbox
+let cloudRegisterFn = null;   // report this device's password accounts to the registry
+let registrySyncMsg = 'not synced yet';   // shown in the admin panel for debugging
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -1806,6 +1808,12 @@ function enterApp(username, firstTime) {
     users[username].seenTut = true;
     saveUsers(users);
   }
+  // report this device's password accounts to the cloud registry so
+  // the admin can see who signed up. Retries once if Firebase is
+  // still warming up; fails silently offline (next login re-syncs).
+  const trySync = () => { if (cloudRegisterFn) cloudRegisterFn().catch(() => {}); };
+  setTimeout(trySync, 1500);
+  setTimeout(trySync, 8000);
 }
 
 // THREE-VIEW AUTH: choice → login OR signup. Each view shows only
@@ -2792,7 +2800,9 @@ async function loadCloudAdmin() {
     emailBox.textContent = 'Log in with Google to manage cloud accounts.';
     box.innerHTML = ''; return;
   }
-  emailBox.innerHTML = 'Your admin email (put this in the rules): <b style="color:#7dc4ff">' + (cloudUser.email || '?') + '</b>';
+  emailBox.innerHTML = 'Your admin email (put this in the rules): <b style="color:#7dc4ff">' + (cloudUser.email || '?') + '</b>'
+    + '<br>This device\'s registry sync: <b style="color:' + (registrySyncMsg.startsWith('✓') ? '#9be8b7' : '#ffb4c0') + '">'
+    + registrySyncMsg + '</b>';
   box.innerHTML = '<div class="empty">Loading…</div>';
   if (!cloudAdminListFn) { box.innerHTML = '<div class="empty">Cloud not ready.</div>'; return; }
   const list = await cloudAdminListFn();
@@ -2803,17 +2813,23 @@ async function loadCloudAdmin() {
   if (!list.length) { box.innerHTML = '<div class="empty">No cloud sign-ups yet.</div>'; return; }
   let html = '';
   for (const a of list) {
+    // device (password) entries are read-only here: gifts and bans
+    // work through Firebase logins, which password accounts don't
+    // have — honest label instead of buttons that wouldn't work.
+    const acts = a.device
+      ? '<div class="meta" style="margin-top:6px;">🔑 password account — signed up on its own device</div>'
+      : '<div class="acts">'
+        + '<button class="aGift" data-cgift="' + a.uid + '">🪙 Give</button>'
+        + (a.banned
+            ? '<button class="aUnban" data-cunban="' + a.uid + '">Unban</button>'
+            : '<button class="aBan" data-cban="' + a.uid + '">Ban</button>')
+        + '</div>';
     html += '<div class="adminUser' + (a.banned ? ' banned' : '') + '">'
-      + '<div class="top"><div><div class="who">' + a.name + '</div>'
+      + '<div class="top"><div><div class="who">' + (a.device ? '🔑 ' : '') + a.name + '</div>'
       + '<div class="meta">' + a.email + ' · 🪙 ' + a.coins + ' · 🔥 ' + a.streak
       + '-day · seen ' + a.lastSeen + '</div></div>'
       + (a.banned ? '<span class="banTag">BANNED</span>' : '') + '</div>'
-      + '<div class="acts">'
-      + '<button class="aGift" data-cgift="' + a.uid + '">🪙 Give</button>'
-      + (a.banned
-          ? '<button class="aUnban" data-cunban="' + a.uid + '">Unban</button>'
-          : '<button class="aBan" data-cban="' + a.uid + '">Ban</button>')
-      + '</div></div>';
+      + acts + '</div>';
   }
   box.innerHTML = html;
 }
@@ -3328,9 +3344,22 @@ async function initCloud() {
         const list = [];
         accSnap.forEach(d => {
           const a = d.data();
-          list.push({ uid: d.id, name: a.name || '?', email: a.email || '',
-                      coins: a.coins || 0, streak: a.streak || 0,
-                      lastSeen: a.lastSeen || '', banned: !!banned[d.id] });
+          // one doc can hold BOTH: a Google account's own entry AND
+          // the password accounts of the device it lives on
+          if (a.name) {
+            list.push({ uid: d.id, name: a.name, email: a.email || '',
+                        coins: a.coins || 0, streak: a.streak || 0,
+                        lastSeen: a.lastSeen || '', banned: !!banned[d.id] });
+          }
+          if (a.passwordUsers) {
+            for (const n in a.passwordUsers) {
+              const p = a.passwordUsers[n];
+              list.push({ uid: d.id, name: n, email: p.email || '',
+                          coins: p.coins || 0, streak: p.streak || 0,
+                          lastSeen: a.deviceSeen || a.lastSeen || '',
+                          banned: false, device: true });
+            }
+          }
         });
         return list;
       } catch (e) { return null; }   // not admin, or rules not published
@@ -3347,6 +3376,49 @@ async function initCloud() {
         { coins: dbMod.increment(amount) }, { merge: true });
     };
 
+    // DEVICE REGISTRY 📇 — the fix for "password signups don't show
+    // in Manage Accounts". Password accounts live only in each
+    // device's storage, so the admin could never see them. Now every
+    // device signs in ANONYMOUSLY (a lightweight Firebase identity,
+    // no popup, no password) and reports its password accounts —
+    // names, emails, coins, streaks — into the same accounts registry
+    // the admin already reads. Requires the Anonymous provider to be
+    // enabled in Firebase → Authentication → Sign-in method.
+    cloudRegisterFn = async () => {
+      try {
+        // whatever identity this device has works — a Google session
+        // that's still alive in the background, or a fresh anonymous
+        // one. (The old version wrongly skipped Google devices, which
+        // is why your own PC never reported its password signups.)
+        let u = auth.currentUser;
+        if (!u) u = (await authMod.signInAnonymously(auth)).user;
+        if (!u) throw new Error('no identity');
+        const users = getUsers();
+        const list = {};
+        let count = 0;
+        for (const n in users) {
+          if (DEV_ACCOUNTS[n]) continue;  // dev accounts stay off the list
+          const g = (users[n].data && users[n].data.game) || {};
+          list[n] = { email: users[n].email || '',
+                      coins: g.coins || 0, streak: g.streak || 0 };
+          count++;
+        }
+        // merge:true — a Google user's own registry entry on this doc
+        // survives; we only update the passwordUsers field
+        await dbMod.setDoc(dbMod.doc(db, 'accounts', u.uid), {
+          passwordUsers: list,
+          deviceSeen: new Date().toLocaleString(),
+        }, { merge: true });
+        registrySyncMsg = '✓ synced ' + count + ' password account'
+          + (count === 1 ? '' : 's') + ' at ' + new Date().toLocaleTimeString();
+      } catch (err) {
+        // no more silent failures — the admin panel shows WHY
+        registrySyncMsg = '✗ sync failed: ' + (err.code || err.message)
+          + (String(err.code).includes('operation-not-allowed')
+             ? ' — enable Anonymous sign-in in Firebase Authentication!' : '');
+      }
+    };
+
     gBtn.addEventListener('click', async () => {
       try {
         const result = await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider());
@@ -3357,9 +3429,11 @@ async function initCloud() {
     });
 
     // already signed in from a previous visit? walk straight in —
-    // (unless a password account beat us to it on this device)
+    // (unless a password account beat us to it on this device).
+    // IMPORTANT: anonymous identities are just the device-registry
+    // messenger — they must never be treated as a real login.
     authMod.onAuthStateChanged(auth, (user) => {
-      if (user && !cloudUser && !currentUser) enterCloudApp(user);
+      if (user && !user.isAnonymous && !cloudUser && !currentUser) enterCloudApp(user);
     });
   } catch (e) {
     // Firebase unreachable (offline / blocked) — the button explains

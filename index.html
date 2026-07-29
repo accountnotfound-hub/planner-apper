@@ -205,6 +205,16 @@
 
   .page { flex: 1; overflow-y: auto; padding: 8px 16px 16px; display: none; }
   .page.active { display: block; animation: fadeUp 0.22s ease; }
+  /* the Today progress chip + bar */
+  #todayProgress { margin-top: 6px; }
+  #todayProgress:empty { display: none; }
+  .progText { font-size: 13px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  .progBar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.08);
+             overflow: hidden; }
+  .progFill { height: 100%; border-radius: 4px;
+              background: linear-gradient(90deg, #7dc4ff, #9be8b7);
+              transition: width 0.4s ease; }
+
   /* slim, quiet scrollbars — the content is the star, not the chrome */
   .page::-webkit-scrollbar, #settingsPage::-webkit-scrollbar,
   #adminPage::-webkit-scrollbar, #studyPage::-webkit-scrollbar { width: 5px; }
@@ -227,10 +237,14 @@
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   /* inputs glow softly when focused — a small "I'm listening" cue */
   input:focus, select:focus, textarea:focus { outline: none; border-color: #7dc4ff; }
-  /* show-password toggle row on the login screen */
-  #showPwRow { display: flex; align-items: center; gap: 6px; max-width: 280px; width: 100%;
-               font-size: 12px; color: #8b92ad; }
-  #showPwRow input { width: 16px; height: 16px; }
+  /* show-password toggle: checkbox first, label right beside it,
+     left-aligned and on ONE line — the way English forms read */
+  #showPwRow { display: flex; align-items: center; justify-content: flex-start;
+               gap: 8px; max-width: 280px; width: 100%;
+               font-size: 12.5px; color: #8b92ad;
+               white-space: nowrap; cursor: pointer; }
+  #showPwRow input { width: 16px; height: 16px; flex: 0 0 auto; margin: 0;
+                     accent-color: #7dc4ff; cursor: pointer; }
 
   /* section headings get a small accent tick — quiet structure */
   h2 { font-size: 12px; color: var(--ink-dim); text-transform: uppercase;
@@ -379,12 +393,19 @@
     gap: 10px; padding: 30px;
   }
   #loginPage.off { display: none; }
-  /* gradient-ink logo — the one place we're allowed to show off */
+  /* gradient-ink logo — the one place we're allowed to show off.
+     NOTE: the gradient trick makes text transparent, which turns an
+     EMOJI into a flat silhouette (that was the blue blob!). So the
+     emoji lives in its own span that opts back out of the trick. */
   #loginPage h1 {
     font-size: 32px;
     background: linear-gradient(90deg, #7dc4ff, #c88cff 60%, #ffd54a);
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent; color: transparent;
+  }
+  #loginPage h1 .logoMoji {
+    -webkit-text-fill-color: initial; color: initial;
+    background: none;
   }
   #loginPage .tag { color: var(--ink-dim); font-size: 13px; margin-bottom: 16px; }
   #loginPage input {
@@ -392,6 +413,14 @@
     background: rgba(0, 0, 0, 0.35); color: var(--ink);
     border: 1px solid #2c3352; border-radius: 12px;
     padding: 13px; font-family: inherit; font-size: 15px;
+  }
+  /* the checkbox must OPT OUT of the text-field styling above —
+     that rule styles every login input, and it was stretching the
+     checkbox into a full-width bar. CSS lesson: the LAST rule of
+     equal weight wins, so the exception must come after. */
+  #loginPage input[type="checkbox"] {
+    width: 16px; height: 16px; padding: 0; margin: 0;
+    accent-color: #7dc4ff; cursor: pointer;
   }
   #loginPage button {
     width: 100%; max-width: 280px;
@@ -441,8 +470,33 @@
   .aDel   { background: #3a1622; color: #ff8cb4; }
   .banTag { font-size: 10px; font-weight: 800; color: #ffb4c0;
             background: #7c2334; padding: 2px 7px; border-radius: 99px; }
-  .setHead { display: flex; justify-content: space-between; align-items: center; }
-  .setHead h1 { font-size: 22px; }
+  .setHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .setHead h1 { font-size: 22px; flex: 1; }
+  #backSettings { background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+                  width: 32px; height: 32px; border-radius: 50%;
+                  font-size: 16px; cursor: pointer; }
+
+  /* ===== settings MENU (messenger-style rows) ===== */
+  #setMenu { margin-top: 14px; }
+  .setItem {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    background: none; border: none; border-bottom: 1px solid var(--line);
+    padding: 14px 6px; cursor: pointer; text-align: left;
+    font-family: inherit; color: var(--ink);
+    transition: background 0.12s ease;
+  }
+  .setItem:hover { background: rgba(255, 255, 255, 0.04); }
+  .setIco { width: 38px; height: 38px; border-radius: 50%;
+            background: var(--panel); border: 1px solid var(--line);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 17px; flex-shrink: 0; }
+  .setTxt { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+  .setTxt b { font-size: 15px; font-weight: 700; }
+  .setTxt small { font-size: 12px; color: var(--ink-dim); }
+  .chev { color: var(--ink-dim); font-size: 18px; }
+  /* each section is its own page: hidden until opened from the menu */
+  .setSection { display: none; }
+  .setSection.on { display: block; animation: fadeUp 0.18s ease; }
   #closeSettings { background: #262b44; border: none; color: #eef0f8;
                    width: 32px; height: 32px; border-radius: 50%;
                    font-size: 15px; cursor: pointer; }
@@ -571,6 +625,7 @@
 
   <!-- ===== PAGE 1: TODAY ===== -->
   <div class="page active" id="page-today">
+    <div id="todayProgress"></div>
     <h2>Today's schedule</h2>
     <div id="todayActivities"></div>
     <h2>Tasks due soon</h2>
@@ -643,13 +698,6 @@
     <div id="taskList"></div>
   </div>
 
-  <nav>
-    <button data-page="today" class="active">Today</button>
-    <button data-page="week">Schedule</button>
-    <button data-page="tasks">Tasks</button>
-    <button data-page="parent">Parent</button>
-  </nav>
-
   <!-- ===== PAGE: PARENT (parental controls) ===== -->
   <div class="page" id="page-parent">
     <h2>👨‍👩‍👦 Parental Controls</h2>
@@ -694,6 +742,17 @@
     <div id="shopList"></div>
   </div>
 
+  <!-- the tab bar lives BELOW every page in the HTML, so whichever
+       page is active, the bar always stays pinned to the bottom.
+       (It used to sit between the pages — that's why it jumped up
+       when you opened Parent or Shop.) -->
+  <nav>
+    <button data-page="today" class="active">Today</button>
+    <button data-page="week">Schedule</button>
+    <button data-page="tasks">Tasks</button>
+    <button data-page="parent">Parent</button>
+  </nav>
+
   <!-- ===== PHOTO PROOF (parental controls) ===== -->
   <div id="proofOverlay">
     <div style="font-size:48px;">📸</div>
@@ -719,10 +778,39 @@
   <!-- ===== SETTINGS (opens over everything) ===== -->
   <div id="settingsPage">
     <div class="setHead">
-      <h1>⚙ Settings</h1>
+      <button id="backSettings" style="display:none;">←</button>
+      <h1 id="setTitle">⚙ Settings</h1>
       <button id="closeSettings">✕</button>
     </div>
 
+    <!-- THE MENU: like a messenger's settings — one clean list of
+         sections, each opening its own page. No more giant scroll. -->
+    <div id="setMenu">
+      <button class="setItem" data-sec="secAlarms" data-title="⏰ Alarms">
+        <span class="setIco">⏰</span>
+        <span class="setTxt"><b>Alarms</b><small>Sound, volume, remind-before time</small></span>
+        <span class="chev">›</span></button>
+      <button class="setItem" data-sec="secNotifs" data-title="🔔 Notifications">
+        <span class="setIco">🔔</span>
+        <span class="setTxt"><b>Notifications</b><small>Reminders even in a background tab</small></span>
+        <span class="chev">›</span></button>
+      <button class="setItem" id="menuPassword" data-sec="secPass" data-title="🔑 Password">
+        <span class="setIco">🔑</span>
+        <span class="setTxt"><b>Password</b><small>Change your password</small></span>
+        <span class="chev">›</span></button>
+      <button class="setItem" data-sec="secBackup" data-title="💾 Backup">
+        <span class="setIco">💾</span>
+        <span class="setTxt"><b>Backup</b><small>Import your latest backup</small></span>
+        <span class="chev">›</span></button>
+      <button class="setItem" id="menuDev" data-sec="secDev" data-title="🛠 Dev Panel" style="display:none;">
+        <span class="setIco">🛠</span>
+        <span class="setTxt"><b>Dev Panel</b><small>Testing tools &amp; account manager</small></span>
+        <span class="chev">›</span></button>
+      <button id="logoutBtn">Log out</button>
+      <button id="deleteAccBtn">🗑 Delete my account</button>
+    </div>
+
+    <div class="setSection" id="secAlarms">
     <h2>⏰ Alarms</h2>
     <div class="setRow">
       <label>Alarms on</label>
@@ -754,13 +842,17 @@
       <input type="file" id="ringFile" accept="audio/*" style="flex:1.4;font-size:11px;">
     </div>
     <div class="setRow"><div id="ringStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div></div>
+    </div>
 
+    <div class="setSection" id="secNotifs">
     <h2>🔔 Notifications</h2>
     <div class="setRow">
       <div id="notifStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div>
       <button class="smallBtn" id="notifBtn">Enable</button>
     </div>
+    </div>
 
+    <div class="setSection" id="secPass">
     <div id="pinSection">
       <h2>🔑 Change Password</h2>
       <div class="setRow"><input id="curPin" type="password" placeholder="Current password" maxlength="40" style="flex:1"></div>
@@ -770,7 +862,9 @@
         <button class="smallBtn" id="changePinBtn">Change Password</button>
       </div>
     </div>
+    </div>
 
+    <div class="setSection" id="secBackup">
     <h2>💾 Backup</h2>
     <p style="font-size:12px;color:#8b92ad;margin-bottom:8px;">
       Backups happen automatically when an account logs out.
@@ -780,7 +874,9 @@
     <div class="setRow">
       <button class="smallBtn" id="importBackupBtn" style="flex:1;background:#7846dc;">⬇ Import latest backup</button>
     </div>
+    </div>
 
+    <div class="setSection" id="secDev">
     <!-- dev-only panel, hidden for normal users -->
     <div id="devSection" style="display:none;">
       <h2>🛠 Dev Panel</h2>
@@ -796,9 +892,7 @@
         <div class="setRow"><button class="smallBtn" id="adminOpenBtn" style="flex:1;background:#7846dc;">👑 Manage Accounts</button></div>
       </div>
     </div>
-
-    <button id="logoutBtn">Log out</button>
-    <button id="deleteAccBtn">🗑 Delete my account</button>
+    </div>
   </div>
 
   <!-- ===== ADMIN PANEL (dev-only, opens over Settings) ===== -->
@@ -906,11 +1000,11 @@
 
   <!-- ===== the login page (shown first) ===== -->
   <div id="loginPage">
-    <h1>📋 My Planner</h1>
+    <h1><span class="logoMoji">📋</span> My Planner</h1>
     <div class="tag">Your schedule. Your tasks. Your app.</div>
     <input id="loginName" placeholder="Username" maxlength="16" autocomplete="off">
     <input id="loginPin" type="password" placeholder="Password (4+ characters)" maxlength="40">
-    <input id="loginEmail" type="email" placeholder="Email (only for new accounts)" maxlength="60" autocomplete="off">
+    <input id="loginEmail" type="email" placeholder="Your email" maxlength="60" autocomplete="off" style="display:none;">
     <label id="showPwRow"><input type="checkbox" id="showPw"> Show password</label>
     <div id="loginMsg"></div>
     <button id="loginBtn">Log in</button>
@@ -1135,6 +1229,20 @@ function render() {
     (parental && parental.email) ? 'block' : 'none';
 
   // ---- TODAY page ----
+  // the progress chip: "how is my day going?" answered at a glance
+  const dueToday = tasks.filter(t => t.due === todayKey());
+  const doneToday = dueToday.filter(t => t.done).length;
+  const prog = document.getElementById('todayProgress');
+  if (dueToday.length === 0) {
+    prog.innerHTML = '';
+  } else {
+    const pct = Math.round(doneToday / dueToday.length * 100);
+    prog.innerHTML =
+      '<div class="progText">🎯 ' + doneToday + ' of ' + dueToday.length
+      + ' task' + (dueToday.length > 1 ? 's' : '') + ' done today'
+      + (pct === 100 ? ' — day complete! 🎉' : '') + '</div>'
+      + '<div class="progBar"><div class="progFill" style="width:' + pct + '%"></div></div>';
+  }
   const todays = activities
     .filter(a => a.day === todayName())
     .sort((a, b) => a.time < b.time ? -1 : 1);
@@ -1197,9 +1305,18 @@ function render() {
 // PART 4: ACTIONS — change the DATA, then render(). Always.
 // ------------------------------------------------------------
 function deleteActivity(id) {
-  activities = activities.filter(a => a.id !== id);
+  const a = activityById(id);
+  const linked = tasks.filter(t => t.activityId === id).length;
+  // deleting an activity silently killed its tasks — now it warns
+  // exactly what's about to happen, and only when tasks exist
+  if (linked > 0) {
+    if (!confirm('Delete "' + (a ? a.name : 'this activity') + '" and its '
+      + linked + ' task' + (linked > 1 ? 's' : '') + '?')) return;
+  }
+  activities = activities.filter(x => x.id !== id);
   tasks = tasks.filter(t => t.activityId !== id);
   render();
+  showToast('🗑 Activity removed');
 }
 // RENAME an activity — change its name WITHOUT deleting it or its tasks.
 // Same clean-language + length rules as adding one. Cancel = no change.
@@ -1302,7 +1419,15 @@ document.getElementById('activityForm').addEventListener('submit', (e) => {
 document.getElementById('taskForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const title = document.getElementById('taskTitle').value.trim();
-  if (!title || activities.length === 0) return;
+  if (!title) return;
+  // UX RULE: never fail SILENTLY. This used to just... do nothing
+  // when there were no activities — the single most confusing kind
+  // of bug. Now it explains itself and points to the fix.
+  if (activities.length === 0) {
+    showToast('📅 Add an activity in Schedule first — tasks attach to one');
+    switchTab('week');
+    return;
+  }
   if (hasBadWords(title)) {
     document.getElementById('taskTitle').value = '';
     document.getElementById('taskTitle').placeholder = "Let's keep it clean 😅";
@@ -1650,7 +1775,23 @@ function enterApp(username, firstTime) {
   }
 }
 
+// TWO-MODE LOGIN: the screen starts in "log in" mode with just
+// username + password. The first tap on "Create account" switches
+// to signup mode (email appears, button confirms). One form that
+// asks only for what THIS action needs = far less confusion.
+let signupMode = false;
 document.getElementById('signupBtn').addEventListener('click', async () => {
+  if (!signupMode) {
+    signupMode = true;
+    document.getElementById('loginEmail').style.display = 'block';
+    document.getElementById('signupBtn').textContent = '✓ Create my account';
+    document.getElementById('loginBtn').textContent = '← I already have an account';
+    loginMsg.style.color = '#8b92ad';
+    loginMsg.textContent = 'Pick a username, a password (4+), and add your email.';
+    document.getElementById('loginName').focus();
+    return;
+  }
+  loginMsg.style.color = '#ffb4c0';
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
   const email = document.getElementById('loginEmail').value.trim();
@@ -1670,6 +1811,16 @@ document.getElementById('signupBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('loginBtn').addEventListener('click', async () => {
+  // in signup mode this button becomes the way BACK to plain login
+  if (signupMode) {
+    signupMode = false;
+    document.getElementById('loginEmail').style.display = 'none';
+    document.getElementById('signupBtn').textContent = 'Create account';
+    document.getElementById('loginBtn').textContent = 'Log in';
+    loginMsg.textContent = '';
+    return;
+  }
+  loginMsg.style.color = '#ffb4c0';
   const name = document.getElementById('loginName').value.trim().toLowerCase();
   const pin = document.getElementById('loginPin').value;
   const users = getUsers();
@@ -1750,7 +1901,11 @@ document.getElementById('deleteAccBtn').addEventListener('click', async () => {
 
 // pressing Enter in the PIN box = clicking Log in (small touch, feels right)
 document.getElementById('loginPin').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+  // Enter = the action you're in the middle of (login OR signup)
+  if (e.key === 'Enter') document.getElementById(signupMode ? 'signupBtn' : 'loginBtn').click();
+});
+document.getElementById('loginEmail').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('signupBtn').click();
 });
 // Enter in the username box jumps to the password box (small, nice)
 document.getElementById('loginName').addEventListener('keydown', (e) => {
@@ -1977,15 +2132,42 @@ function getLastBackup() {
   try { return JSON.parse(localStorage.getItem('myPlannerLastBackup') || 'null'); }
   catch (e) { return null; }
 }
+// ---- settings navigation: menu ⇄ section pages ----
+function showSetMenu() {
+  document.querySelectorAll('.setSection').forEach(s => s.classList.remove('on'));
+  document.getElementById('setMenu').style.display = 'block';
+  document.getElementById('backSettings').style.display = 'none';
+  document.getElementById('setTitle').textContent = '⚙ Settings';
+}
+function openSetSection(secId, title) {
+  document.getElementById('setMenu').style.display = 'none';
+  document.querySelectorAll('.setSection').forEach(s =>
+    s.classList.toggle('on', s.id === secId));
+  document.getElementById('backSettings').style.display = 'block';
+  document.getElementById('setTitle').textContent = title;
+  settingsPage.scrollTop = 0;
+}
+for (const item of document.querySelectorAll('.setItem')) {
+  item.addEventListener('click', () =>
+    openSetSection(item.dataset.sec, item.dataset.title));
+}
+document.getElementById('backSettings').addEventListener('click', showSetMenu);
+
 document.getElementById('settingsBtn').addEventListener('click', () => {
   refreshSettingsUI();
   // Dev Panel shows for dev accounts AND the admin Google account,
   // but the tools still stay locked behind the dev password — dev
   // accounts behave exactly as before.
-  document.getElementById('devSection').style.display = (isDevUser || cloudIsAdmin) ? 'block' : 'none';
+  const devOK = (isDevUser || cloudIsAdmin);
+  document.getElementById('devSection').style.display = devOK ? 'block' : 'none';
+  document.getElementById('menuDev').style.display = devOK ? 'flex' : 'none';
+  // Google users have no app password — hide that menu row for them
+  document.getElementById('menuPassword').style.display =
+    (document.getElementById('pinSection').style.display === 'none') ? 'none' : 'flex';
   document.getElementById('devTools').style.display = 'none';   // locked until password
   document.getElementById('devPass').value = '';
   document.getElementById('devMsg').textContent = '';
+  showSetMenu();                          // always open on the menu
   settingsPage.classList.add('on');
 });
 document.getElementById('closeSettings').addEventListener('click', () => {

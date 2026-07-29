@@ -1,3 +1,4 @@
+
 // ============================================================
 // SERVICE WORKER — the little helper that makes your app a PWA.
 // It sits between your app and the internet. Here it caches the

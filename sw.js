@@ -1,4 +1,3 @@
-
 // ============================================================
 // SERVICE WORKER — the little helper that makes your app a PWA.
 // It sits between your app and the internet. Here it caches the
@@ -6,7 +5,7 @@
 // that's what makes a web page feel like a real installed app,
 // and it's required for the Google Play packaging step.
 // ============================================================
-const CACHE = 'my-planner-v2';   // bump to v3, v4... when you update the app
+const CACHE = 'my-planner-v3';   // bump to v4, v5... when you update the app
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
  
 // install: save the app's files into the cache drawer

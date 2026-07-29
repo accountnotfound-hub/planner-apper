@@ -3326,6 +3326,9 @@ async function initCloud() {
       render();
       dailyReward();
       if (firstTime) startTutorial();
+      // Google logins report this device's password accounts too —
+      // otherwise the admin's own device never syncs its registry
+      setTimeout(() => { if (cloudRegisterFn) cloudRegisterFn().catch(() => {}); }, 1500);
     }
 
     cloudSignOutFn = () => authMod.signOut(auth).catch(() => {});

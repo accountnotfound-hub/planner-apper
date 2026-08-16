@@ -47,6 +47,12 @@
     --danger: #ff6b7f;
     --radius: 14px;
     --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    /* surface tokens — Light mode flips these */
+    --card: #1c2138;
+    --card-sub: #161a2c;
+    --nav-bg: rgba(10, 12, 22, 0.72);
+    --input-bg: rgba(0, 0, 0, 0.32);
+    --toast-bg: rgba(20, 25, 45, 0.92);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -130,7 +136,7 @@
   /* ===== toast (little slide-in message) ===== */
   #toast {
     position: absolute; left: 50%; bottom: 92px; transform: translateX(-50%) translateY(20px);
-    background: rgba(20, 25, 45, 0.92);
+    background: var(--toast-bg);
     backdrop-filter: blur(6px);
     border: 1px solid var(--accent-border); color: var(--ink);
     padding: 10px 18px; border-radius: 99px; font-size: 13px; font-weight: 700;
@@ -186,7 +192,7 @@
      soft glowing pill — instantly readable at a glance */
   nav {
     display: flex; border-top: 1px solid var(--line);
-    background: rgba(10, 12, 22, 0.72);
+    background: var(--nav-bg);
     backdrop-filter: blur(8px);
     padding: 7px 8px 9px; gap: 6px;
   }
@@ -202,7 +208,7 @@
   nav button[data-page="today"]::before  { content: '🏠'; }
   nav button[data-page="week"]::before   { content: '🗓️'; }
   nav button[data-page="tasks"]::before  { content: '✅'; }
-  nav button[data-page="parent"]::before { content: '🛡️'; }
+  nav button[data-page="friends"]::before { content: '👥'; }
   nav button.active {
     color: var(--accent);
     background: var(--accent-soft);
@@ -211,6 +217,19 @@
 
   .page { flex: 1; overflow-y: auto; padding: 8px 16px 16px; display: none; }
   .page.active { display: block; animation: fadeUp 0.22s ease; }
+  /* theme switching: a quick soft fade so the change feels like a
+     scene transition instead of a hard cut */
+  #app.themeSwap { animation: themeFade 0.45s ease; }
+  @keyframes themeFade {
+    0%   { opacity: 1; }
+    30%  { opacity: 0.55; }
+    100% { opacity: 1; }
+  }
+  /* the little theme swatch shown on shop rows — a live preview of
+     that theme's background with its accent as the ring */
+  .themeDot { width: 30px; height: 30px; border-radius: 50%;
+              border: 2.5px solid; flex-shrink: 0; }
+
   /* the Today progress chip + bar */
   #todayProgress { margin-top: 6px; }
   #todayProgress:empty { display: none; }
@@ -289,7 +308,7 @@
   .prio-low  { background: #7de8a0; }
 
   /* search + filter bar */
-  #taskSearch { background: rgba(0, 0, 0, 0.32); color: var(--ink); border: 1px solid #2c3352;
+  #taskSearch { background: var(--input-bg); color: var(--ink); border: 1px solid #2c3352;
                 border-radius: 99px; padding: 9px 14px; font-family: inherit; font-size: 13px; }
   .filterBtn { flex: 1; background: var(--panel); color: var(--ink-dim); border: 1px solid var(--line);
                border-radius: 99px; padding: 7px 0; font-family: inherit; font-weight: 700;
@@ -311,7 +330,7 @@
          border-radius: var(--radius); padding: 12px;
          display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
   input, select {
-    background: rgba(0, 0, 0, 0.32); color: var(--ink);
+    background: var(--input-bg); color: var(--ink);
     border: 1px solid #2c3352; border-radius: 10px;
     padding: 9px 11px; font-family: inherit; font-size: 13px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -371,7 +390,7 @@
   #tutOverlay.on { display: block; }
   #tutCard {
     position: absolute; left: 14px; right: 14px; bottom: 76px;
-    background: #1c2138; border: 1px solid #3a4166;
+    background: var(--card); border: 1px solid #3a4166;
     border-radius: 14px; padding: 14px;
     z-index: 60;
   }
@@ -488,7 +507,7 @@
   #closeAdmin { background: #262b44; border: none; color: #eef0f8;
                 width: 32px; height: 32px; border-radius: 50%;
                 font-size: 15px; cursor: pointer; }
-  .adminUser { background: #1c2138; border-radius: 12px; padding: 10px 12px;
+  .adminUser { background: var(--card); border-radius: 12px; padding: 10px 12px;
                margin-bottom: 8px; }
   .adminUser.banned { border: 1px solid #7c2334; opacity: 0.75; }
   .adminUser .top { display: flex; justify-content: space-between; align-items: center; }
@@ -584,7 +603,7 @@
     padding: 18px; overflow-y: auto; display: none;
   }
   #studyPage.on { display: block; animation: fadeUp 0.22s ease; }
-  .studyCard { background: #1c2138; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .studyCard { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
   #timerMode { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: 1px;
                text-transform: uppercase; color: #7dc4ff; }
   #timerMode.break { color: #7de8a0; }
@@ -611,7 +630,7 @@
   .customRow input { flex: 1; min-width: 0; }
   .customRow button { background: #2e8cdc; color: #fff; border: none; border-radius: 8px;
                       padding: 0 18px; font-family: inherit; font-weight: 800; font-size: 13px; cursor: pointer; }
-  .cardItem { background: #161a2c; border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
+  .cardItem { background: var(--card-sub); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px;
               display: flex; align-items: center; gap: 8px; }
   .cardItem .grow { flex: 1; min-width: 0; }
   .cardItem .q { font-weight: 700; font-size: 14px; word-break: break-word; }
@@ -734,39 +753,34 @@
     <div id="taskList"></div>
   </div>
 
-  <!-- ===== PAGE: PARENT (parental controls) ===== -->
-  <div class="page" id="page-parent">
-    <h2>👨‍👩‍👦 Parental Controls</h2>
-    <div id="parentOff">
-      <p style="font-size:12px;color:#8b92ad;margin-bottom:6px;">
-        A parent creates a password here. While controls are ON, the
-        Shop stays locked each day until ALL of today's due tasks are
-        done — fun becomes the reward for finishing the work.
-      </p>
-      <div class="setRow"><input id="parentNewPass" type="password" placeholder="Create parent password (6+ characters)" maxlength="40" style="flex:1"></div>
-      <div class="setRow"><input id="parentEmail" type="email" placeholder="Parent email (optional — for reports)" maxlength="60" style="flex:1"></div>
-      <div class="setRow">
-        <label style="flex:1;font-size:12px;color:#cdd3ea;">📸 Require photo proof to complete tasks</label>
-        <input type="checkbox" id="parentPhotoChk" style="width:20px;height:20px;">
-      </div>
-      <div class="setRow"><button class="smallBtn" id="parentEnableBtn" style="flex:1;background:#c98a2e;">Turn ON parental controls</button></div>
+  <!-- ===== PAGE: FRIENDS 👥 (share schedules, codes, groups) ===== -->
+  <div class="page" id="page-friends">
+    <h2>👥 My share code</h2>
+    <div class="studyCard" style="text-align:center;">
+      <div id="myCodeVal" style="font-size:26px;font-weight:800;letter-spacing:4px;color:var(--accent);">——————</div>
+      <p style="font-size:11px;color:var(--ink-dim);margin:6px 0 10px;">Give this code to a friend so they can add you.</p>
+      <button class="smallBtn" id="publishBtn" style="width:100%;">📤 Share my schedule</button>
+      <div id="pubStatus" style="font-size:11px;color:var(--ink-dim);margin-top:6px;"></div>
     </div>
-    <div id="parentOn" style="display:none;">
-      <p style="font-size:12px;color:#9be8b7;margin-bottom:6px;">
-        Parental controls are ON 🔒 — the Shop unlocks each day once
-        every task due today is completed.
-      </p>
-      <p id="parentPhotoStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
-      <p id="parentEmailStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
-      <div class="setRow"><button class="smallBtn" id="parentReportBtn" style="flex:1">📊 Progress report</button></div>
-      <div class="setRow"><button class="smallBtn" id="emailReportBtn" style="flex:1;background:#c98a2e;">📧 Email report to parent</button></div>
-      <div id="parentReport" style="font-size:12px;color:#cdd3ea;line-height:1.5;"></div>
-      <div class="setRow">
-        <input id="parentDisablePass" type="password" placeholder="Parent password" maxlength="40" style="flex:1">
-        <button class="smallBtn" id="parentDisableBtn" style="background:#7c2334;">Turn OFF</button>
-      </div>
-    </div>
-    <div id="parentMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;"></div>
+
+    <h2>➕ Add a friend</h2>
+    <form id="addFriendForm">
+      <input id="friendCodeInput" placeholder="Friend's code (e.g. K7M2QX)" maxlength="8" autocomplete="off" style="text-transform:uppercase;">
+      <button type="submit">Add friend</button>
+    </form>
+    <div id="friendsList"></div>
+
+    <h2>👨‍👩‍👧‍👦 Groups</h2>
+    <form id="groupForm">
+      <input id="groupNameInput" placeholder="New group name (e.g. Class 9B)" maxlength="24">
+      <button type="submit">+ Create group</button>
+    </form>
+    <form id="joinGroupForm">
+      <input id="groupCodeInput" placeholder="Join with a group code (e.g. G-K7M2QX)" maxlength="10" autocomplete="off" style="text-transform:uppercase;">
+      <button type="submit">Join group</button>
+    </form>
+    <div id="groupsList"></div>
+    <div id="friendMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;margin-top:4px;"></div>
   </div>
 
   <!-- ===== PAGE 4: THE SHOP ===== -->
@@ -786,7 +800,7 @@
     <button data-page="today" class="active">Today</button>
     <button data-page="week">Schedule</button>
     <button data-page="tasks">Tasks</button>
-    <button data-page="parent">Parent</button>
+    <button data-page="friends">Friends</button>
   </nav>
 
   <!-- ===== PHOTO PROOF (parental controls) ===== -->
@@ -830,6 +844,10 @@
         <span class="setIco">🔔</span>
         <span class="setTxt"><b>Notifications</b><small>Reminders even in a background tab</small></span>
         <span class="chev">›</span></button>
+      <button class="setItem" data-sec="secTheme" data-title="🎨 Appearance">
+        <span class="setIco">🎨</span>
+        <span class="setTxt"><b>Appearance</b><small>System, dark, light &amp; your themes</small></span>
+        <span class="chev">›</span></button>
       <button class="setItem" id="menuPassword" data-sec="secPass" data-title="🔑 Password">
         <span class="setIco">🔑</span>
         <span class="setTxt"><b>Password</b><small>Change your password</small></span>
@@ -837,6 +855,10 @@
       <button class="setItem" data-sec="secBackup" data-title="💾 Backup">
         <span class="setIco">💾</span>
         <span class="setTxt"><b>Backup</b><small>Import your latest backup</small></span>
+        <span class="chev">›</span></button>
+      <button class="setItem" data-sec="secParent" data-title="👨‍👩‍👦 Parental controls">
+        <span class="setIco">👨‍👩‍👦</span>
+        <span class="setTxt"><b>Parental controls</b><small>Shop lock, photo proof, reports</small></span>
         <span class="chev">›</span></button>
       <button class="setItem" id="menuDev" data-sec="secDev" data-title="🛠 Dev Panel" style="display:none;">
         <span class="setIco">🛠</span>
@@ -855,6 +877,7 @@
     <div class="setRow">
       <label>Alarm sound</label>
       <select id="alarmSound">
+        <option value="system">System (device sound) 🔔</option>
         <option value="beep">Beep</option>
         <option value="chime">Chime</option>
         <option value="siren">Siren</option>
@@ -888,6 +911,15 @@
     </div>
     </div>
 
+    <div class="setSection" id="secTheme">
+    <h2>🎨 Appearance</h2>
+    <p style="font-size:12px;color:var(--ink-dim);margin-bottom:8px;">
+      System follows your device's light/dark setting automatically.
+      Themes you buy in the Shop appear here too.
+    </p>
+    <div id="themeChoices"></div>
+    </div>
+
     <div class="setSection" id="secPass">
     <div id="pinSection">
       <h2>🔑 Change Password</h2>
@@ -910,6 +942,42 @@
     <div class="setRow">
       <button class="smallBtn" id="importBackupBtn" style="flex:1;background:#7846dc;">⬇ Import latest backup</button>
     </div>
+    </div>
+
+    <div class="setSection" id="secParent">
+
+    <h2>👨‍👩‍👦 Parental Controls</h2>
+    <div id="parentOff">
+      <p style="font-size:12px;color:#8b92ad;margin-bottom:6px;">
+        A parent creates a password here. While controls are ON, the
+        Shop stays locked each day until ALL of today's due tasks are
+        done — fun becomes the reward for finishing the work.
+      </p>
+      <div class="setRow"><input id="parentNewPass" type="password" placeholder="Create parent password (6+ characters)" maxlength="40" style="flex:1"></div>
+      <div class="setRow"><input id="parentEmail" type="email" placeholder="Parent email (optional — for reports)" maxlength="60" style="flex:1"></div>
+      <div class="setRow">
+        <label style="flex:1;font-size:12px;color:#cdd3ea;">📸 Require photo proof to complete tasks</label>
+        <input type="checkbox" id="parentPhotoChk" style="width:20px;height:20px;">
+      </div>
+      <div class="setRow"><button class="smallBtn" id="parentEnableBtn" style="flex:1;background:#c98a2e;">Turn ON parental controls</button></div>
+    </div>
+    <div id="parentOn" style="display:none;">
+      <p style="font-size:12px;color:#9be8b7;margin-bottom:6px;">
+        Parental controls are ON 🔒 — the Shop unlocks each day once
+        every task due today is completed.
+      </p>
+      <p id="parentPhotoStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
+      <p id="parentEmailStatus" style="font-size:12px;color:#8b92ad;margin-bottom:6px;"></p>
+      <div class="setRow"><button class="smallBtn" id="parentReportBtn" style="flex:1">📊 Progress report</button></div>
+      <div class="setRow"><button class="smallBtn" id="emailReportBtn" style="flex:1;background:#c98a2e;">📧 Email report to parent</button></div>
+      <div id="parentReport" style="font-size:12px;color:#cdd3ea;line-height:1.5;"></div>
+      <div class="setRow">
+        <input id="parentDisablePass" type="password" placeholder="Parent password" maxlength="40" style="flex:1">
+        <button class="smallBtn" id="parentDisableBtn" style="background:#7c2334;">Turn OFF</button>
+      </div>
+    </div>
+    <div id="parentMsg" style="font-size:12px;color:#ffb4c0;min-height:16px;"></div>
+  
     </div>
 
     <div class="setSection" id="secDev">
@@ -1123,7 +1191,9 @@ function defaultGame() {
            // STUDY: flashcards + timer prefs + a daily study-coin cap.
            // Living inside `game` means they save to device AND cloud for free.
            cards: [], focusMin: 25, breakMin: 5,
-           studyCoinDay: '', studyCoinsToday: 0 };
+           studyCoinDay: '', studyCoinsToday: 0,
+           // FRIENDS: your share code, people you added, groups you're in
+           myCode: '', friends: [], groups: [] };
 }
 let game = defaultGame();
 // parental controls: null = off; when on, holds the parent's
@@ -1144,6 +1214,7 @@ let registrySyncMsg = 'not synced yet';   // shown in the admin panel for debugg
 let cloudDeviceGiftFn = null; // admin: gift coins to a password account by device+name
 let cloudDeviceBanFn = null;  // admin: ban/unban a password account by device+name
 let cloudDeviceSyncFn = null; // password login: claim gifts + obey cloud bans
+let cloudFriendsFn = null;    // { ensureCode, publish, lookup, fetchShare, createGroup, joinGroup, fetchGroup }
 
 // ------------------------------------------------------------
 // PART 1.5: THE CLEAN-LANGUAGE FILTER
@@ -1511,6 +1582,9 @@ function switchTab(name) {
   // always start a freshly-opened tab at the top, not mid-scroll
   const page = document.getElementById('page-' + name);
   if (page) page.scrollTop = 0;
+  if (name === 'friends') {                 // fresh lists + mint my code
+    try { renderFriends(); ensureMyCode(); } catch (e) {}
+  }
 }
 for (const btn of document.querySelectorAll('nav button')) {
   btn.addEventListener('click', () => switchTab(btn.dataset.page));
@@ -2017,6 +2091,11 @@ function tone(freq, delay, len, wave) {
   osc.stop(ctx.currentTime + delay + len);
 }
 function playAlarmPattern() {
+  if (alarmCfg.sound === 'system') {
+    // no generated tone — the notification we send with each alarm
+    // carries the DEVICE's own notification sound instead
+    return;
+  }
   if (alarmCfg.sound === 'chime') {
     tone(523, 0, 0.25, 'sine'); tone(659, 0.25, 0.25, 'sine'); tone(784, 0.5, 0.45, 'sine');
   } else if (alarmCfg.sound === 'siren') {
@@ -2193,6 +2272,7 @@ function refreshSettingsUI() {
     importBtn.style.opacity = 0.5;
   }
   refreshNotifUI();          // keep the 🔔 button's label in sync
+  renderThemeChoices();      // keep the Appearance list in sync
 }
 
 function getLastBackup() {
@@ -2254,7 +2334,18 @@ document.getElementById('alarmBefore').addEventListener('input', (e) => {
   document.getElementById('alarmBeforeOut').textContent = alarmCfg.before + ' min';
   persist();
 });
-document.getElementById('testAlarmBtn').addEventListener('click', playAlarmPattern);
+document.getElementById('testAlarmBtn').addEventListener('click', () => {
+  if (alarmCfg.sound === 'system') {
+    if (notifyReady()) {
+      sendNotification('🔔 Alarm test', "Alarms will use your device's notification sound.");
+      showToast('Sent a test notification 🔔');
+    } else {
+      showToast('Turn on Notifications first (🔔 section) for the system sound');
+    }
+    return;
+  }
+  playAlarmPattern();
+});
 
 document.getElementById('changePinBtn').addEventListener('click', async () => {
   const pinMsg = document.getElementById('pinMsg');
@@ -2285,13 +2376,21 @@ document.getElementById('changePinBtn').addEventListener('click', async () => {
 // → spend coins on themes, colors, and sounds. Everything lives
 // in the `game` object and rides the same autosave as the rest.
 // ------------------------------------------------------------
+// each theme = an accent + a layered background: a soft radial GLOW
+// of the accent up top, sinking into the dark gradient. The glow is
+// what gives each theme its atmosphere instead of just a flat tint.
 const THEMES = {
-  ocean:  { name: 'Ocean',  bg: 'linear-gradient(180deg, #171b2e, #10131f)', accent: '#7dc4ff' },
-  sunset: { name: 'Sunset', bg: 'linear-gradient(180deg, #2e1726, #1f1013)', accent: '#ff9d6c' },
-  forest: { name: 'Forest', bg: 'linear-gradient(180deg, #14261c, #0c1810)', accent: '#7de8a0' },
-  gold:   { name: 'Midnight Gold', bg: 'linear-gradient(180deg, #262014, #17130a)', accent: '#ffd54a' },
+  ocean:  { name: 'Ocean',  accent: '#7dc4ff',
+    bg: 'radial-gradient(420px 260px at 50% -8%, rgba(125,196,255,0.16), transparent 62%), linear-gradient(180deg, #171b2e, #10131f)' },
+  sunset: { name: 'Sunset', accent: '#ff9d6c',
+    bg: 'radial-gradient(420px 260px at 50% -8%, rgba(255,157,108,0.17), transparent 62%), linear-gradient(180deg, #2e1726, #1f1013)' },
+  forest: { name: 'Forest', accent: '#7de8a0',
+    bg: 'radial-gradient(420px 260px at 50% -8%, rgba(125,232,160,0.14), transparent 62%), linear-gradient(180deg, #14261c, #0c1810)' },
+  gold:   { name: 'Midnight Gold', accent: '#ffd54a',
+    bg: 'radial-gradient(420px 260px at 50% -8%, rgba(255,213,74,0.15), transparent 62%), linear-gradient(180deg, #262014, #17130a)' },
   // EXCLUSIVE — can't be bought, only earned at a 30-day streak 🔥
-  streaklord: { name: 'Streak Lord', bg: 'linear-gradient(180deg, #2a0f1a, #140812)', accent: '#ff5e7a' },
+  streaklord: { name: 'Streak Lord', accent: '#ff5e7a',
+    bg: 'radial-gradient(420px 260px at 50% -8%, rgba(255,94,122,0.20), transparent 62%), radial-gradient(300px 200px at 85% 105%, rgba(255,94,122,0.10), transparent 60%), linear-gradient(180deg, #2a0f1a, #140812)' },
 };
 // turn "#7dc4ff" into "125, 196, 255" so we can build see-through
 // versions of any accent color for the pills and glows
@@ -2299,20 +2398,130 @@ function hexToRgbStr(hex) {
   const n = parseInt(hex.slice(1), 16);
   return ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255);
 }
+
+// THE TREES 🌲 — a little forest silhouette drawn as SVG and slipped
+// under every theme as a background layer. Same trees everywhere,
+// tinted with each theme's accent, so Ocean gets blue pines, Sunset
+// orange ones, Streak Lord crimson... one drawing, five moods.
+function sceneLayer(color, opacity) {
+  let trees = '';
+  const xs = [8, 58, 102, 158, 212, 262, 318, 372];
+  for (let i = 0; i < xs.length; i++) {
+    const x = xs[i];
+    const h = 42 + ((i * 37) % 42);          // varied heights, no randomness
+    const w = 26 + ((i * 13) % 14);          // (random would change on reload)
+    const tip = x + w / 2;
+    trees += '<polygon points="' + x + ',110 ' + tip + ',' + (110 - h) + ' ' + (x + w) + ',110"/>'
+      + '<rect x="' + (tip - 2) + '" y="104" width="4" height="6"/>';
+  }
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="110">'
+    + '<g fill="' + color + '" fill-opacity="' + opacity + '">' + trees + '</g></svg>';
+  return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '") bottom center / 100% auto no-repeat';
+}
+
+// the LIGHT palette — a real daylight mode, not just a pale background
+const LIGHT_PALETTE = { name: 'Light', accent: '#2e7cd6',
+  bg: 'radial-gradient(420px 260px at 50% -8%, rgba(46,124,214,0.10), transparent 62%), linear-gradient(180deg, #f4f6fc, #e8ebf5)' };
+
 function applyTheme(id) {
-  const t = THEMES[id] || THEMES.ocean;
-  game.theme = THEMES[id] ? id : 'ocean';
-  // rewrite the four theme TOKENS — every accent, pill, glow, button
+  const valid = THEMES[id] || id === 'system' || id === 'light' || id === 'dark';
+  game.theme = valid ? id : 'ocean';
+  // which look does this id resolve to?
+  let light = false, t;
+  if (game.theme === 'system') {
+    // follow the DEVICE's light/dark setting
+    try { light = matchMedia('(prefers-color-scheme: light)').matches; } catch (e) {}
+    t = light ? LIGHT_PALETTE : THEMES.ocean;
+  } else if (game.theme === 'light') { light = true; t = LIGHT_PALETTE; }
+  else if (game.theme === 'dark')  { t = THEMES.ocean; }
+  else { t = THEMES[game.theme]; }
+
+  // rewrite the theme TOKENS — every accent, pill, glow, button
   // gradient, focus ring and page background follows automatically.
   const root = document.documentElement.style;
   const rgb = hexToRgbStr(t.accent);
   root.setProperty('--accent', t.accent);
   root.setProperty('--accent-soft', 'rgba(' + rgb + ', 0.14)');
   root.setProperty('--accent-border', 'rgba(' + rgb + ', 0.4)');
-  root.setProperty('--bg-grad', t.bg);
-  document.getElementById('app').style.background = t.bg;
+  // surface palette: dark by default, flipped for Light
+  const S = light
+    ? { ink: '#1b2130', dim: '#5b6480', panel: 'rgba(20, 40, 90, 0.05)',
+        line: 'rgba(10, 20, 60, 0.13)', card: '#ffffff', sub: '#eef1f8',
+        nav: 'rgba(255, 255, 255, 0.8)', input: 'rgba(15, 25, 60, 0.07)',
+        toast: 'rgba(255, 255, 255, 0.96)' }
+    : { ink: '#eef0f8', dim: '#8b92ad', panel: 'rgba(255, 255, 255, 0.045)',
+        line: 'rgba(255, 255, 255, 0.08)', card: '#1c2138', sub: '#161a2c',
+        nav: 'rgba(10, 12, 22, 0.72)', input: 'rgba(0, 0, 0, 0.32)',
+        toast: 'rgba(20, 25, 45, 0.92)' };
+  root.setProperty('--ink', S.ink);
+  root.setProperty('--ink-dim', S.dim);
+  root.setProperty('--panel', S.panel);
+  root.setProperty('--line', S.line);
+  root.setProperty('--card', S.card);
+  root.setProperty('--card-sub', S.sub);
+  root.setProperty('--nav-bg', S.nav);
+  root.setProperty('--input-bg', S.input);
+  root.setProperty('--toast-bg', S.toast);
+
+  // background = the trees + the theme's glow gradient
+  const full = sceneLayer(t.accent, light ? 0.12 : 0.09) + ', ' + t.bg;
+  root.setProperty('--bg-grad', full);
+  const app = document.getElementById('app');
+  app.style.background = full;
   document.querySelector('header h1').style.color = t.accent;
+  // the scene-change fade (restart the animation if it's mid-play)
+  app.classList.remove('themeSwap');
+  void app.offsetWidth;               // forces a reflow = animation resets
+  app.classList.add('themeSwap');
 }
+// if the theme is "system", follow the device when IT switches modes
+try {
+  matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+    if (game.theme === 'system') { applyTheme('system'); }
+  });
+} catch (e) { /* older browsers — system theme just won't live-switch */ }
+
+// ---- the Appearance picker in Settings ----
+function themeChoiceRow(id, name, iconHtml) {
+  const active = game.theme === id;
+  return '<div class="shopItem">' + iconHtml
+    + '<div class="grow"><div class="name">' + name + '</div></div>'
+    + (active
+        ? '<button class="shopBtn equipped">In use ✓</button>'
+        : '<button class="shopBtn equip" data-settheme="' + id + '">Use</button>')
+    + '</div>';
+}
+function themeDotFor(id) {
+  const t = THEMES[id];
+  return '<div class="themeDot" style="background:' + t.bg
+    + ';border-color:' + t.accent + '"></div>';
+}
+function renderThemeChoices() {
+  const box = document.getElementById('themeChoices');
+  if (!box) return;
+  const moji = (m) => '<div style="font-size:24px">' + m + '</div>';
+  let html = themeChoiceRow('system', 'System (follows device)', moji('🖥️'))
+    + themeChoiceRow('dark', 'Dark', moji('🌙'))
+    + themeChoiceRow('light', 'Light', moji('☀️'))
+    + themeChoiceRow('ocean', 'Ocean', themeDotFor('ocean'));
+  for (const item of SHOP_ITEMS) {
+    if (item.kind === 'theme' && game.owned[item.id]) {
+      html += themeChoiceRow(item.theme, THEMES[item.theme].name, themeDotFor(item.theme));
+    }
+  }
+  if (game.owned.theme_streaklord) {
+    html += themeChoiceRow('streaklord', 'Streak Lord 🔥', themeDotFor('streaklord'));
+  }
+  box.innerHTML = html;
+}
+document.getElementById('themeChoices').addEventListener('click', (e) => {
+  const id = e.target.dataset.settheme;
+  if (!id) return;
+  applyTheme(id);
+  render();                 // repaints + autosaves the choice
+  renderThemeChoices();
+  showToast('🎨 Theme: ' + (id === 'system' ? 'System' : id === 'dark' ? 'Dark' : id === 'light' ? 'Light' : (THEMES[id] || {}).name || id));
+});
 
 const SHOP_ITEMS = [
   { id: 'theme_sunset', icon: '🌅', name: 'Sunset Theme', desc: 'Warm evening colors', price: 80, kind: 'theme', theme: 'sunset' },
@@ -2343,7 +2552,13 @@ function shopRow(item, ownedFlag) {
   } else {
     btn = '<button class="shopBtn cant">🪙 ' + item.price + '</button>';
   }
-  return '<div class="shopItem"><div style="font-size:24px">' + item.icon + '</div>'
+  // theme rows get a LIVE swatch — the theme's own background inside
+  // a ring of its accent color, so you can see what you're buying
+  const icon = (item.kind === 'theme' && THEMES[item.theme])
+    ? '<div class="themeDot" style="background:' + THEMES[item.theme].bg.replace(/"/g, '')
+      + ';border-color:' + THEMES[item.theme].accent + '"></div>'
+    : '<div style="font-size:24px">' + item.icon + '</div>';
+  return '<div class="shopItem">' + icon
     + '<div class="grow"><div class="name">' + item.name + '</div>'
     + '<div class="desc">' + item.desc + '</div></div>' + btn + '</div>';
 }
@@ -2771,7 +2986,7 @@ document.getElementById('devResetBtn').addEventListener('click', () => {
   applyTheme('ocean');
   buildColorRow();
   document.getElementById('alarmSound').innerHTML =
-    '<option value="beep">Beep</option><option value="chime">Chime</option><option value="siren">Siren</option>';
+    '<option value="system">System (device sound) 🔔</option><option value="beep">Beep</option><option value="chime">Chime</option><option value="siren">Siren</option>';
   alarmCfg.sound = 'beep';
   refreshSettingsUI();
   render();
@@ -3245,6 +3460,189 @@ document.getElementById('closeStudy').addEventListener('click', () => {
   studyPage.classList.remove('on');
 });
 
+
+// ------------------------------------------------------------
+// PART 16: FRIENDS 👥 — share codes, friend schedules, groups.
+// Your friends and groups live inside `game`, so they save and
+// sync exactly like everything else you own.
+// ------------------------------------------------------------
+const friendMsg = () => document.getElementById('friendMsg');
+function friendsSay(text, good) {
+  friendMsg().style.color = good ? '#9be8b7' : '#ffb4c0';
+  friendMsg().textContent = text;
+}
+
+// draw one shared schedule as a read-only mini week
+function miniWeekHtml(share) {
+  if (!share || !share.activities || !share.activities.length) {
+    return '<div class="empty">No schedule shared yet.</div>';
+  }
+  let out = '';
+  for (const day of DAYS) {
+    const list = share.activities.filter(a => a.day === day)
+      .sort((a, b) => a.time < b.time ? -1 : 1);
+    if (!list.length) continue;                    // skip empty days — compact
+    out += '<div style="font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px;">' + day + '</div>';
+    for (const a of list) {
+      out += '<div class="card" style="border-left-color:' + escapeHtml(a.color || '#7dc4ff') + '">'
+        + '<div><div class="name">' + escapeHtml(a.name) + '</div>'
+        + '<div class="sub">' + escapeHtml(a.time || '') + '</div></div></div>';
+    }
+  }
+  return out + '<div style="font-size:10px;color:var(--ink-dim);text-align:right;">updated ' + escapeHtml(share.updated || '') + '</div>';
+}
+
+function renderFriends() {
+  const list = document.getElementById('friendsList');
+  const groups = document.getElementById('groupsList');
+  if (!list) return;
+  document.getElementById('myCodeVal').textContent = game.myCode || '——————';
+  const friends = game.friends || [];
+  list.innerHTML = friends.length
+    ? friends.map((f, i) =>
+        '<div class="shopItem"><div style="font-size:22px">👤</div>'
+        + '<div class="grow"><div class="name">' + escapeHtml(f.account) + '</div>'
+        + '<div class="desc">code ' + escapeHtml(f.code) + '</div></div>'
+        + '<button class="shopBtn buy" data-viewfriend="' + i + '">View</button>'
+        + '<button class="xbtn" data-delfriend="' + i + '">✕</button></div>'
+        + '<div id="friendView' + i + '"></div>').join('')
+    : '<div class="empty">No friends yet — swap codes to add each other!</div>';
+  const gs = game.groups || [];
+  groups.innerHTML = gs.length
+    ? gs.map((g, i) =>
+        '<div class="shopItem"><div style="font-size:22px">👨‍👩‍👧‍👦</div>'
+        + '<div class="grow"><div class="name">' + escapeHtml(g.name) + '</div>'
+        + '<div class="desc">code ' + escapeHtml(g.code) + ' — share it to invite</div></div>'
+        + '<button class="shopBtn buy" data-viewgroup="' + i + '">View</button>'
+        + '<button class="xbtn" data-delgroup="' + i + '">✕</button></div>'
+        + '<div id="groupView' + i + '"></div>').join('')
+    : '<div class="empty">No groups yet — create one and share its code.</div>';
+}
+
+function needCloud() {
+  if (!cloudFriendsFn) { friendsSay('Friends needs the internet — try again in a moment.'); return true; }
+  return false;
+}
+
+// mint my code the first time the Friends tab opens
+async function ensureMyCode() {
+  if (game.myCode || !cloudFriendsFn) return;
+  try {
+    await cloudFriendsFn.ensureCode();
+    renderFriends();
+  } catch (e) { friendsSay('Could not get a code — are the friends rules published?'); }
+}
+
+document.getElementById('publishBtn').addEventListener('click', async () => {
+  if (needCloud()) return;
+  const st = document.getElementById('pubStatus');
+  st.textContent = 'Sharing…';
+  try {
+    await cloudFriendsFn.ensureCode();
+    await cloudFriendsFn.publish();
+    st.textContent = '✓ Shared! Friends with your code can now see your week.';
+    renderFriends();
+  } catch (e) { st.textContent = '✗ Could not share — check the friends rules.'; }
+});
+
+document.getElementById('addFriendForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (needCloud()) return;
+  const code = document.getElementById('friendCodeInput').value.trim().toUpperCase();
+  if (!code) return;
+  if (code === game.myCode) { friendsSay("That's your own code 😄"); return; }
+  if ((game.friends || []).some(f => f.code === code)) { friendsSay('Already added!'); return; }
+  try {
+    const who = await cloudFriendsFn.lookup(code);
+    if (!who) { friendsSay('No one has that code — check the letters?'); return; }
+    if (!game.friends) game.friends = [];
+    game.friends.push({ code: code, uid: who.uid, account: who.account });
+    document.getElementById('friendCodeInput').value = '';
+    friendsSay('✓ Added ' + who.account + '!', true);
+    render();                                     // saves
+    renderFriends();
+  } catch (err) { friendsSay('Could not look that up — try again.'); }
+});
+
+document.getElementById('groupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (needCloud()) return;
+  const name = document.getElementById('groupNameInput').value.trim();
+  if (!name) return;
+  if (hasBadWords(name)) { friendsSay("Let's keep it clean 😅"); return; }
+  try {
+    const code = await cloudFriendsFn.createGroup(name);
+    if (!game.groups) game.groups = [];
+    game.groups.push({ code: code, name: name });
+    document.getElementById('groupNameInput').value = '';
+    friendsSay('✓ Group made! Share the code ' + code + ' to invite people.', true);
+    render();
+    renderFriends();
+  } catch (err) { friendsSay('Could not create the group — check the rules.'); }
+});
+
+document.getElementById('joinGroupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (needCloud()) return;
+  const code = document.getElementById('groupCodeInput').value.trim().toUpperCase();
+  if (!code) return;
+  if ((game.groups || []).some(g => g.code === code)) { friendsSay('Already in that group!'); return; }
+  try {
+    const name = await cloudFriendsFn.joinGroup(code);
+    if (!name) { friendsSay('No group has that code.'); return; }
+    if (!game.groups) game.groups = [];
+    game.groups.push({ code: code, name: name });
+    document.getElementById('groupCodeInput').value = '';
+    friendsSay('✓ Joined ' + name + '!', true);
+    render();
+    renderFriends();
+  } catch (err) { friendsSay('Could not join — try again.'); }
+});
+
+// one listener for View / remove on both lists
+document.getElementById('page-friends').addEventListener('click', async (e) => {
+  const vf = e.target.dataset.viewfriend, df = e.target.dataset.delfriend;
+  const vg = e.target.dataset.viewgroup, dg = e.target.dataset.delgroup;
+  if (df !== undefined) {
+    game.friends.splice(Number(df), 1); render(); renderFriends(); return;
+  }
+  if (dg !== undefined) {
+    game.groups.splice(Number(dg), 1); render(); renderFriends(); return;
+  }
+  if (vf !== undefined && cloudFriendsFn) {
+    const f = game.friends[Number(vf)];
+    const box = document.getElementById('friendView' + vf);
+    if (box.innerHTML) { box.innerHTML = ''; return; }        // tap again = close
+    box.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const share = await cloudFriendsFn.fetchShare(f.uid, f.account);
+      box.innerHTML = miniWeekHtml(share);
+    } catch (err) { box.innerHTML = '<div class="empty">Could not load their schedule.</div>'; }
+    return;
+  }
+  if (vg !== undefined && cloudFriendsFn) {
+    const g = game.groups[Number(vg)];
+    const box = document.getElementById('groupView' + vg);
+    if (box.innerHTML) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="empty">Loading…</div>';
+    try {
+      const info = await cloudFriendsFn.fetchGroup(g.code);
+      if (!info) { box.innerHTML = '<div class="empty">Group not found.</div>'; return; }
+      let out = '';
+      for (const key in (info.members || {})) {
+        const memberName = info.members[key];
+        const uid = key.split('|')[0], account = key.split('|')[1];
+        out += '<h2 style="margin-top:10px;">👤 ' + escapeHtml(memberName) + '</h2>';
+        try {
+          const share = await cloudFriendsFn.fetchShare(uid, account);
+          out += miniWeekHtml(share);
+        } catch (e2) { out += '<div class="empty">Could not load.</div>'; }
+      }
+      box.innerHTML = out || '<div class="empty">No members yet.</div>';
+    } catch (err) { box.innerHTML = '<div class="empty">Could not load the group.</div>'; }
+  }
+});
+
 // register the service worker (the PWA helper) — safely, as always:
 // if it's not supported or the file is missing, the app doesn't care
 if ('serviceWorker' in navigator) {
@@ -3449,6 +3847,85 @@ async function initCloud() {
         confettiBurst();
         render();
       } catch (e) { /* offline — the gift waits patiently */ }
+    };
+
+    // FRIENDS 👥 — codes, shared schedules and groups, all built on
+    // three tiny ideas:
+    //   codes/<CODE>   = a phonebook: code → who owns it
+    //   shares/<uid>   = your published schedule (read-only to others)
+    //   groups/<CODE>  = a member list everyone in the group can read
+    const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I mixups
+    function makeCode() {
+      let c = '';
+      for (let i = 0; i < 6; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+      return c;
+    }
+    async function myIdentity() {
+      let u = auth.currentUser;
+      if (!u) u = (await authMod.signInAnonymously(auth)).user;
+      const account = currentUser || (cloudUser ? cloudUser.name : 'me');
+      return { uid: u.uid, account: account };
+    }
+    cloudFriendsFn = {
+      // get (or mint) MY share code — tries random codes until one is free
+      ensureCode: async () => {
+        if (game.myCode) return game.myCode;
+        const me = await myIdentity();
+        for (let tries = 0; tries < 5; tries++) {
+          const code = makeCode();
+          const ref = dbMod.doc(db, 'codes', code);
+          const snap = await dbMod.getDoc(ref);
+          if (snap.exists()) continue;                   // taken — roll again
+          await dbMod.setDoc(ref, { uid: me.uid, account: me.account, name: me.account });
+          game.myCode = code;
+          persist();
+          return code;
+        }
+        throw new Error('could not find a free code');
+      },
+      // publish MY activities so friends can see them
+      publish: async () => {
+        const me = await myIdentity();
+        const patch = { accounts: {} };
+        patch.accounts[me.account] = {
+          name: me.account,
+          activities: activities.map(a => ({ name: a.name, day: a.day, time: a.time, color: a.color })),
+          updated: new Date().toLocaleString(),
+        };
+        await dbMod.setDoc(dbMod.doc(db, 'shares', me.uid), patch, { merge: true });
+      },
+      lookup: async (code) => {
+        const snap = await dbMod.getDoc(dbMod.doc(db, 'codes', code));
+        return snap.exists() ? snap.data() : null;
+      },
+      fetchShare: async (uid, account) => {
+        const snap = await dbMod.getDoc(dbMod.doc(db, 'shares', uid));
+        if (!snap.exists()) return null;
+        const d = snap.data();
+        return (d.accounts && d.accounts[account]) || null;
+      },
+      createGroup: async (name) => {
+        const me = await myIdentity();
+        const code = 'G-' + makeCode();
+        const members = {};
+        members[me.uid + '|' + me.account] = me.account;
+        await dbMod.setDoc(dbMod.doc(db, 'groups', code), { name: name, members: members });
+        return code;
+      },
+      joinGroup: async (code) => {
+        const ref = dbMod.doc(db, 'groups', code);
+        const snap = await dbMod.getDoc(ref);
+        if (!snap.exists()) return null;
+        const me = await myIdentity();
+        const patch = { members: {} };
+        patch.members[me.uid + '|' + me.account] = me.account;
+        await dbMod.setDoc(ref, patch, { merge: true });
+        return snap.data().name;
+      },
+      fetchGroup: async (code) => {
+        const snap = await dbMod.getDoc(dbMod.doc(db, 'groups', code));
+        return snap.exists() ? snap.data() : null;
+      },
     };
 
     // ADMIN: read the whole accounts registry + who's banned.

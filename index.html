@@ -230,6 +230,32 @@
   .themeDot { width: 30px; height: 30px; border-radius: 50%;
               border: 2.5px solid; flex-shrink: 0; }
 
+  /* ===== GROUP CHAT 💬 ===== */
+  #groupChat {
+    position: absolute; inset: 0; z-index: 67;
+    background: var(--bg-grad);
+    display: none; flex-direction: column; padding: 14px 14px 12px;
+  }
+  #groupChat.on { display: flex; animation: fadeUp 0.22s ease; }
+  #chatMsgs { flex: 1; overflow-y: auto; padding: 8px 2px; }
+  .bubble { max-width: 82%; padding: 8px 12px; border-radius: 14px;
+            margin: 5px 0; font-size: 13px; word-break: break-word; }
+  .bubble.mine { margin-left: auto; background: var(--accent-soft);
+                 border: 1px solid var(--accent-border); border-bottom-right-radius: 4px; }
+  .bubble.theirs { background: var(--card); border: 1px solid var(--line);
+                   border-bottom-left-radius: 4px; }
+  .bubble .who { font-size: 10px; font-weight: 800; color: var(--accent); margin-bottom: 2px; }
+  .bubble .when { font-size: 9px; color: var(--ink-dim); text-align: right; margin-top: 3px; }
+  #chatRow { display: flex; gap: 6px; margin-top: 8px; }
+  #chatInput { flex: 1; background: var(--input-bg); color: var(--ink);
+               border: 1px solid #2c3352; border-radius: 99px;
+               padding: 10px 14px; font-family: inherit; font-size: 13px; }
+  #chatSendBtn, #chatShareBtn { border: none; border-radius: 50%;
+               width: 40px; height: 40px; cursor: pointer; font-size: 16px;
+               background: linear-gradient(180deg, var(--accent),
+                 color-mix(in srgb, var(--accent) 62%, #101425)); color: white; }
+  #chatMembers { font-size: 11px; color: var(--ink-dim); margin: 2px 0 4px; }
+
   /* the Today progress chip + bar */
   #todayProgress { margin-top: 6px; }
   #todayProgress:empty { display: none; }
@@ -525,9 +551,10 @@
             background: #7c2334; padding: 2px 7px; border-radius: 99px; }
   .setHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .setHead h1 { font-size: 22px; flex: 1; }
-  #backSettings { background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+  #backSettings, #chatBack, #chatRefresh {
+                  background: var(--panel); border: 1px solid var(--line); color: var(--ink);
                   width: 32px; height: 32px; border-radius: 50%;
-                  font-size: 16px; cursor: pointer; }
+                  font-size: 16px; cursor: pointer; flex-shrink: 0; }
 
   /* ===== settings MENU (messenger-style rows) ===== */
   #setMenu { margin-top: 14px; }
@@ -1099,6 +1126,22 @@
         <button id="quizGotBtn">Got it ✓</button>
       </div>
       <button id="quizCloseBtn">End test</button>
+    </div>
+  </div>
+
+  <!-- ===== GROUP CHAT (opens over the Friends tab) ===== -->
+  <div id="groupChat">
+    <div class="setHead">
+      <button id="chatBack">←</button>
+      <h1 id="chatTitle" style="font-size:18px;">Group</h1>
+      <button id="chatRefresh">↻</button>
+    </div>
+    <div id="chatMembers"></div>
+    <div id="chatMsgs"></div>
+    <div id="chatRow">
+      <input id="chatInput" placeholder="Message…" maxlength="200" autocomplete="off">
+      <button id="chatShareBtn" title="Send my schedule">📅</button>
+      <button id="chatSendBtn" title="Send">➤</button>
     </div>
   </div>
 
@@ -3513,7 +3556,7 @@ function renderFriends() {
         '<div class="shopItem"><div style="font-size:22px">👨‍👩‍👧‍👦</div>'
         + '<div class="grow"><div class="name">' + escapeHtml(g.name) + '</div>'
         + '<div class="desc">code ' + escapeHtml(g.code) + ' — share it to invite</div></div>'
-        + '<button class="shopBtn buy" data-viewgroup="' + i + '">View</button>'
+        + '<button class="shopBtn buy" data-viewgroup="' + i + '">💬 Open</button>'
         + '<button class="xbtn" data-delgroup="' + i + '">✕</button></div>'
         + '<div id="groupView' + i + '"></div>').join('')
     : '<div class="empty">No groups yet — create one and share its code.</div>';
@@ -3599,6 +3642,101 @@ document.getElementById('joinGroupForm').addEventListener('submit', async (e) =>
   } catch (err) { friendsSay('Could not join — try again.'); }
 });
 
+
+// ---- GROUP CHAT 💬 — one group doc holds the message list; the
+// chat polls it every 5s while open, so friends' messages appear
+// without anyone refreshing. Closing the chat stops the polling.
+let chatGroup = null;      // { code, name } of the open chat
+let chatPoll = null;
+let chatLastCount = -1;    // only redraw when something new arrived
+
+function myChatName() {
+  return currentUser || (cloudUser ? cloudUser.name : 'me');
+}
+function chatWhen(at) {
+  try {
+    const d = new Date(at);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  } catch (e) { return ''; }
+}
+function renderChat(info) {
+  document.getElementById('chatMembers').textContent =
+    'Members: ' + Object.values(info.members || {}).map(escapeHtml).join(', ');
+  const msgs = info.messages || [];
+  if (msgs.length === chatLastCount) return;        // nothing new — don't flicker
+  chatLastCount = msgs.length;
+  const me = myChatName();
+  const box = document.getElementById('chatMsgs');
+  box.innerHTML = msgs.map(m => {
+    const mine = m.from === me;
+    let body;
+    if (m.kind === 'schedule') {
+      body = '📅 <b>shared their week:</b>' + miniWeekHtml({ activities: m.activities, updated: '' });
+    } else {
+      body = escapeHtml(m.text || '');
+    }
+    return '<div class="bubble ' + (mine ? 'mine' : 'theirs') + '">'
+      + (mine ? '' : '<div class="who">' + escapeHtml(m.from || '?') + '</div>')
+      + body
+      + '<div class="when">' + chatWhen(m.at) + '</div></div>';
+  }).join('') || '<div class="empty">No messages yet — say hi! 👋</div>';
+  box.scrollTop = box.scrollHeight;                  // stick to the newest
+}
+async function loadChat() {
+  if (!chatGroup || !cloudFriendsFn) return;
+  try {
+    const info = await cloudFriendsFn.fetchGroup(chatGroup.code);
+    if (!info) return;
+    if ((info.messages || []).length > 200) {        // keep the doc small
+      try { await cloudFriendsFn.trimGroupMsgs(chatGroup.code, info.messages); } catch (e) {}
+    }
+    renderChat(info);
+  } catch (e) { /* offline blip — next poll retries */ }
+}
+function openGroupChat(g) {
+  chatGroup = g;
+  chatLastCount = -1;
+  document.getElementById('chatTitle').textContent = g.name + '  ·  ' + g.code;
+  document.getElementById('chatMsgs').innerHTML = '<div class="empty">Loading…</div>';
+  document.getElementById('groupChat').classList.add('on');
+  loadChat();
+  chatPoll = setInterval(loadChat, 5000);            // live-ish updates
+}
+function closeGroupChat() {
+  document.getElementById('groupChat').classList.remove('on');
+  chatGroup = null;
+  if (chatPoll) { clearInterval(chatPoll); chatPoll = null; }
+}
+document.getElementById('chatBack').addEventListener('click', closeGroupChat);
+document.getElementById('chatRefresh').addEventListener('click', loadChat);
+
+async function sendChat(kind) {
+  if (!chatGroup || !cloudFriendsFn) return;
+  const input = document.getElementById('chatInput');
+  const msg = { from: myChatName(), at: Date.now() };
+  if (kind === 'schedule') {
+    msg.kind = 'schedule';
+    msg.activities = activities.map(a => ({ name: a.name, day: a.day, time: a.time, color: a.color }));
+  } else {
+    const text = input.value.trim();
+    if (!text) return;
+    if (hasBadWords(text)) { showToast("Let's keep it clean 😅"); return; }
+    msg.kind = 'text';
+    msg.text = text;
+  }
+  try {
+    await cloudFriendsFn.sendGroupMsg(chatGroup.code, msg);
+    input.value = '';
+    chatLastCount = -1;                              // force a redraw
+    loadChat();
+  } catch (e) { showToast('Could not send — check your internet'); }
+}
+document.getElementById('chatSendBtn').addEventListener('click', () => sendChat('text'));
+document.getElementById('chatShareBtn').addEventListener('click', () => sendChat('schedule'));
+document.getElementById('chatInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); sendChat('text'); }
+});
+
 // one listener for View / remove on both lists
 document.getElementById('page-friends').addEventListener('click', async (e) => {
   const vf = e.target.dataset.viewfriend, df = e.target.dataset.delfriend;
@@ -3621,25 +3759,7 @@ document.getElementById('page-friends').addEventListener('click', async (e) => {
     return;
   }
   if (vg !== undefined && cloudFriendsFn) {
-    const g = game.groups[Number(vg)];
-    const box = document.getElementById('groupView' + vg);
-    if (box.innerHTML) { box.innerHTML = ''; return; }
-    box.innerHTML = '<div class="empty">Loading…</div>';
-    try {
-      const info = await cloudFriendsFn.fetchGroup(g.code);
-      if (!info) { box.innerHTML = '<div class="empty">Group not found.</div>'; return; }
-      let out = '';
-      for (const key in (info.members || {})) {
-        const memberName = info.members[key];
-        const uid = key.split('|')[0], account = key.split('|')[1];
-        out += '<h2 style="margin-top:10px;">👤 ' + escapeHtml(memberName) + '</h2>';
-        try {
-          const share = await cloudFriendsFn.fetchShare(uid, account);
-          out += miniWeekHtml(share);
-        } catch (e2) { out += '<div class="empty">Could not load.</div>'; }
-      }
-      box.innerHTML = out || '<div class="empty">No members yet.</div>';
-    } catch (err) { box.innerHTML = '<div class="empty">Could not load the group.</div>'; }
+    openGroupChat(game.groups[Number(vg)]);          // groups open as CHATS now
   }
 });
 
@@ -3925,6 +4045,19 @@ async function initCloud() {
       fetchGroup: async (code) => {
         const snap = await dbMod.getDoc(dbMod.doc(db, 'groups', code));
         return snap.exists() ? snap.data() : null;
+      },
+      // append one message. arrayUnion adds to the list without
+      // overwriting anyone else's message — safe even if two friends
+      // send at the same moment.
+      sendGroupMsg: async (code, msg) => {
+        await dbMod.setDoc(dbMod.doc(db, 'groups', code),
+          { messages: dbMod.arrayUnion(msg) }, { merge: true });
+      },
+      // chats live inside one document (max ~1MB), so long chats get
+      // trimmed to the newest 150 messages when they grow past 200
+      trimGroupMsgs: async (code, msgs) => {
+        await dbMod.setDoc(dbMod.doc(db, 'groups', code),
+          { messages: msgs.slice(-150) }, { merge: true });
       },
     };
 

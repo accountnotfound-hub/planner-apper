@@ -5,15 +5,15 @@
 // that's what makes a web page feel like a real installed app,
 // and it's required for the Google Play packaging step.
 // ============================================================
-const CACHE = 'my-planner-v11';   // bump to v5, v6... when you update the app
+const CACHE = 'my-planner-v13';   // bump to v5, v6... when you update the app
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
- 
+
 // install: save the app's files into the cache drawer
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)));
   self.skipWaiting();
 });
- 
+
 // activate: throw away caches from old versions
 self.addEventListener('activate', (e) => {
   e.waitUntil(
@@ -22,14 +22,14 @@ self.addEventListener('activate', (e) => {
     )
   );
 });
- 
+
 // fetch: try the internet first, fall back to the cache when offline
 self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );
 });
- 
+
 // notification click: bring the planner's window to the front
 // (or open it if it isn't already open). This is why the app's
 // reminders feel like real app notifications.

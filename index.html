@@ -3675,8 +3675,9 @@ function renderChat(info) {
     } else {
       body = escapeHtml(m.text || '');
     }
+    // EVERY bubble carries its sender's name — yours reads "name (you)"
     return '<div class="bubble ' + (mine ? 'mine' : 'theirs') + '">'
-      + (mine ? '' : '<div class="who">' + escapeHtml(m.from || '?') + '</div>')
+      + '<div class="who">' + escapeHtml(m.from || '?') + (mine ? ' (you)' : '') + '</div>'
       + body
       + '<div class="when">' + chatWhen(m.at) + '</div></div>';
   }).join('') || '<div class="empty">No messages yet — say hi! 👋</div>';

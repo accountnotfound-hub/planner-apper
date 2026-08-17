@@ -1138,6 +1138,10 @@
     </div>
     <div id="chatMembers"></div>
     <div id="chatMsgs"></div>
+    <div id="schedPick" style="display:none;gap:6px;margin-top:6px;">
+      <button type="button" class="filterBtn" data-sendweek="0">📅 This week</button>
+      <button type="button" class="filterBtn" data-sendweek="1">📅 Next week</button>
+    </div>
     <div id="chatRow">
       <input id="chatInput" placeholder="Message…" maxlength="200" autocomplete="off">
       <button id="chatShareBtn" title="Send my schedule">📅</button>
@@ -3671,7 +3675,18 @@ function renderChat(info) {
     const mine = m.from === me;
     let body;
     if (m.kind === 'schedule') {
-      body = '📅 <b>shared their week:</b>' + miniWeekHtml({ activities: m.activities, updated: '' });
+      body = '📅 <b>' + escapeHtml(m.label || 'shared their week') + '</b>'
+        + miniWeekHtml({ activities: m.activities, updated: '' });
+      if (m.tasks && m.tasks.length) {
+        body += '<div style="font-size:11px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:1px;margin:8px 0 4px;">Tasks that week</div>'
+          + m.tasks.map(t =>
+              '<div style="font-size:12.5px;margin:3px 0;">'
+              + (t.done ? '✅ ' : '• ') + escapeHtml(t.title)
+              + ' <span style="color:var(--ink-dim);">— ' + escapeHtml(t.due.slice(5))
+              + (t.time ? ' ' + escapeHtml(t.time) : '') + '</span></div>').join('');
+      } else if (m.tasks) {
+        body += '<div style="font-size:11px;color:var(--ink-dim);margin-top:6px;">No tasks due that week 🎉</div>';
+      }
     } else {
       body = escapeHtml(m.text || '');
     }
@@ -3711,13 +3726,31 @@ function closeGroupChat() {
 document.getElementById('chatBack').addEventListener('click', closeGroupChat);
 document.getElementById('chatRefresh').addEventListener('click', loadChat);
 
-async function sendChat(kind) {
+// which calendar week? 0 = this week, 1 = next week. Weeks run
+// Monday→Sunday; we find this week's Monday, then slide by 7 days.
+function weekRange(offset) {
+  const d = new Date();
+  const backToMonday = (d.getDay() + 6) % 7;      // Sun=0 → 6 back, Mon=1 → 0
+  d.setDate(d.getDate() - backToMonday + offset * 7);
+  const start = dateKey(d);
+  d.setDate(d.getDate() + 6);
+  return { start: start, end: dateKey(d),
+           label: offset === 0 ? 'This week' : 'Next week' };
+}
+async function sendChat(kind, weekOffset) {
   if (!chatGroup || !cloudFriendsFn) return;
   const input = document.getElementById('chatInput');
   const msg = { from: myChatName(), at: Date.now() };
   if (kind === 'schedule') {
+    const w = weekRange(weekOffset || 0);
     msg.kind = 'schedule';
+    msg.label = w.label + ' (' + w.start.slice(5) + ' → ' + w.end.slice(5) + ')';
     msg.activities = activities.map(a => ({ name: a.name, day: a.day, time: a.time, color: a.color }));
+    // the part that actually DIFFERS between weeks: tasks due in it
+    msg.tasks = tasks
+      .filter(t => t.due >= w.start && t.due <= w.end)
+      .sort((a, b) => (a.due + (a.time || '')) < (b.due + (b.time || '')) ? -1 : 1)
+      .map(t => ({ title: t.title, due: t.due, time: t.time || '', done: !!t.done }));
   } else {
     const text = input.value.trim();
     if (!text) return;
@@ -3733,7 +3766,17 @@ async function sendChat(kind) {
   } catch (e) { showToast('Could not send — check your internet'); }
 }
 document.getElementById('chatSendBtn').addEventListener('click', () => sendChat('text'));
-document.getElementById('chatShareBtn').addEventListener('click', () => sendChat('schedule'));
+// 📅 opens a two-choice picker instead of sending straight away
+document.getElementById('chatShareBtn').addEventListener('click', () => {
+  const p = document.getElementById('schedPick');
+  p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+});
+document.getElementById('schedPick').addEventListener('click', (e) => {
+  const w = e.target.dataset.sendweek;
+  if (w === undefined) return;
+  document.getElementById('schedPick').style.display = 'none';
+  sendChat('schedule', Number(w));
+});
 document.getElementById('chatInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); sendChat('text'); }
 });

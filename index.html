@@ -723,6 +723,10 @@
       <div class="colorRow" id="colorRow"></div>
       <button type="submit">+ Add to schedule</button>
     </form>
+    <div id="weekToggle" style="display:flex;gap:6px;margin-bottom:10px;">
+      <button type="button" class="filterBtn active" data-weekview="0">This week</button>
+      <button type="button" class="filterBtn" data-weekview="1">Next week</button>
+    </div>
     <div id="weekList"></div>
   </div>
 
@@ -1227,6 +1231,7 @@ let nextId = 10;
 let pickedColor = COLORS[0];
 let taskSearchText = '';     // what's typed in the task search box
 let taskFilter = 'all';      // 'all' | 'today' | 'overdue'
+let weekView = 0;            // Schedule tab: 0 = this week, 1 = next week
 
 // the reward-game state: coins, streak, and what you've bought.
 // Lives inside each account's saved data like everything else.
@@ -1429,13 +1434,26 @@ function render() {
     soon.length ? soon.map(taskCard).join('')
                 : '<div class="empty">Nothing due. Legend. 😎</div>';
 
-  // ---- SCHEDULE page: all 7 days ----
+  // ---- SCHEDULE page: the CHOSEN week, with real dates ----
+  // each day shows its calendar date, the repeating activities, AND
+  // the tasks due on that exact date — so "Next week" genuinely
+  // shows next week instead of the same grid again.
+  const wr = weekRange(weekView);
+  const mon = new Date(wr.start + 'T00:00:00');
   let week = '';
-  for (const day of DAYS) {
+  for (let i = 0; i < DAYS.length; i++) {
+    const day = DAYS[i];
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    const key = dateKey(d);
+    week += '<h2>' + day + ' · ' + key.slice(5)
+      + (key === todayKey() ? ' — today' : '') + '</h2>';
     const list = activities.filter(a => a.day === day).sort((a, b) => a.time < b.time ? -1 : 1);
-    week += '<h2>' + day + '</h2>';
-    week += list.length ? list.map(a => activityCard(a, false)).join('')
-                        : '<div class="empty">free day</div>';
+    const due = tasks.filter(t => t.due === key)
+      .sort((a, b) => (a.time || '') < (b.time || '') ? -1 : 1);
+    week += list.map(a => activityCard(a, false)).join('');
+    week += due.map(taskCard).join('');
+    if (!list.length && !due.length) week += '<div class="empty">free day</div>';
   }
   document.getElementById('weekList').innerHTML = week;
 
@@ -1635,6 +1653,16 @@ function switchTab(name) {
 }
 for (const btn of document.querySelectorAll('nav button')) {
   btn.addEventListener('click', () => switchTab(btn.dataset.page));
+}
+
+// Schedule tab: switch between this week and next week
+for (const b of document.querySelectorAll('#weekToggle .filterBtn')) {
+  b.addEventListener('click', () => {
+    weekView = Number(b.dataset.weekview);
+    document.querySelectorAll('#weekToggle .filterBtn').forEach(x =>
+      x.classList.toggle('active', x === b));
+    render();
+  });
 }
 
 // search box: re-render the task list as you type

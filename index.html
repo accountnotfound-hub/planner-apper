@@ -2733,8 +2733,9 @@ function applyTheme(id) {
   root.setProperty('--input-bg', S.input);
   root.setProperty('--toast-bg', S.toast);
 
-  // background = the trees + the theme's glow gradient
-  const full = sceneLayer(t.accent, light ? 0.12 : 0.09) + ', ' + t.bg;
+  // background = just the theme's glow gradient (the tree silhouettes
+  // were retired in v24 — they read as odd triangles on small screens)
+  const full = t.bg;
   root.setProperty('--bg-grad', full);
   const app = document.getElementById('app');
   app.style.background = full;
@@ -4123,6 +4124,8 @@ window.hideCalEvent = hideCalEvent;
 // It's a LIST OF DATA (of course it is) rendered into Settings.
 // ------------------------------------------------------------
 const UPDATE_LOG = [
+  { v: 'v24', when: 'Sep 2026', items: [
+      '🧹 Removed the tree silhouettes from theme backgrounds — cleaner look' ] },
   { v: 'v23', when: 'Sep 2026', items: [
       '✏️ Edit anything — activities (name, day, time) and tasks (name, due, time, priority) via the ✎ button',
       '🛠 No more delete-and-remake to fix a typo' ] },

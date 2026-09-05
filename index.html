@@ -920,21 +920,21 @@
         <span class="setIco">⏰</span>
         <span class="setTxt"><b>Alarms</b><small>Sound, volume, remind-before time</small></span>
         <span class="chev">›</span></button>
-      <button class="setItem" data-sec="secNotifs" data-title="🔔 Notifications">
+      <button class="setItem" data-sec="secNotifs" data-title="🔔 Notifications &amp; Calendar">
         <span class="setIco">🔔</span>
-        <span class="setTxt"><b>Notifications</b><small>Reminders even in a background tab</small></span>
+        <span class="setTxt"><b>Notifications &amp; Calendar</b><small>Reminders + your Google Calendar</small></span>
         <span class="chev">›</span></button>
       <button class="setItem" data-sec="secTheme" data-title="🎨 Appearance">
         <span class="setIco">🎨</span>
         <span class="setTxt"><b>Appearance</b><small>System, dark, light &amp; your themes</small></span>
         <span class="chev">›</span></button>
-      <button class="setItem" data-sec="secCal" data-title="📆 Calendar">
-        <span class="setIco">📆</span>
-        <span class="setTxt"><b>Calendar</b><small>Connect your Google Calendar</small></span>
-        <span class="chev">›</span></button>
       <button class="setItem" data-sec="secNews" data-title="🆕 What's new">
         <span class="setIco">🆕</span>
         <span class="setTxt"><b>What's new</b><small>Every update, newest first</small></span>
+        <span class="chev">›</span></button>
+      <button class="setItem" data-sec="secAbout" data-title="📄 About &amp; privacy">
+        <span class="setIco">📄</span>
+        <span class="setTxt"><b>About &amp; privacy</b><small>Privacy policy, your data, contact</small></span>
         <span class="chev">›</span></button>
       <button class="setItem" id="menuPassword" data-sec="secPass" data-title="🔑 Password">
         <span class="setIco">🔑</span>
@@ -997,18 +997,6 @@
       <div id="notifStatus" style="flex:1;font-size:11px;color:#8b92ad;"></div>
       <button class="smallBtn" id="notifBtn">Enable</button>
     </div>
-    </div>
-
-    <div class="setSection" id="secTheme">
-    <h2>🎨 Appearance</h2>
-    <p style="font-size:12px;color:var(--ink-dim);margin-bottom:8px;">
-      System follows your device's light/dark setting automatically.
-      Themes you buy in the Shop appear here too.
-    </p>
-    <div id="themeChoices"></div>
-    </div>
-
-    <div class="setSection" id="secCal">
     <h2>📆 Google Calendar</h2>
     <p style="font-size:12px;color:var(--ink-dim);margin-bottom:10px;line-height:1.5;">
       Connect your Google Calendar and your next 2 weeks of events
@@ -1022,9 +1010,37 @@
     <div id="calStatus" style="font-size:12px;color:var(--ink-dim);min-height:16px;"></div>
     </div>
 
+    <div class="setSection" id="secTheme">
+    <h2>🎨 Appearance</h2>
+    <p style="font-size:12px;color:var(--ink-dim);margin-bottom:8px;">
+      System follows your device's light/dark setting automatically.
+      Themes you buy in the Shop appear here too.
+    </p>
+    <div id="themeChoices"></div>
+    </div>
+
     <div class="setSection" id="secNews">
     <h2>🆕 What's new</h2>
     <div id="newsList"></div>
+    </div>
+
+    <div class="setSection" id="secAbout">
+    <h2>📄 About &amp; privacy</h2>
+    <p style="font-size:12px;color:var(--ink-dim);line-height:1.6;margin-bottom:12px;">
+      My Planner is a student planner for activities, tasks and study time.
+      No ads. Your data is never sold. Passwords are stored only as one-way
+      hashes, and connecting Google Calendar is read-only and optional.
+    </p>
+    <div class="setRow">
+      <a href="./privacy-policy.html" target="_blank" rel="noopener" class="smallBtn"
+         style="flex:1;text-align:center;text-decoration:none;display:block;">📄 Read the privacy policy</a>
+    </div>
+    <p style="font-size:11px;color:var(--ink-dim);line-height:1.6;margin-top:12px;">
+      To erase your account and all its data, use “Delete my account” at the
+      bottom of Settings — or email
+      <a href="mailto:ali.sabri.2004.19@gmail.com" style="color:var(--accent);">ali.sabri.2004.19@gmail.com</a>
+      if you can no longer sign in.
+    </p>
     </div>
 
     <div class="setSection" id="secPass">
@@ -4124,6 +4140,11 @@ window.hideCalEvent = hideCalEvent;
 // It's a LIST OF DATA (of course it is) rendered into Settings.
 // ------------------------------------------------------------
 const UPDATE_LOG = [
+  { v: 'v26', when: 'Sep 2026', items: [
+      '📄 Privacy policy + About section — Google Play requirement, done properly',
+      '🗑 Clear data-deletion path: in-app button or by email' ] },
+  { v: 'v25', when: 'Sep 2026', items: [
+      '🔔 Notifications & Calendar now live together in one Settings section' ] },
   { v: 'v24', when: 'Sep 2026', items: [
       '🧹 Removed the tree silhouettes from theme backgrounds — cleaner look' ] },
   { v: 'v23', when: 'Sep 2026', items: [

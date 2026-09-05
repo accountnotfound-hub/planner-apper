@@ -643,41 +643,6 @@
   #studyPage.on { display: block; animation: fadeUp 0.22s ease; }
   .studyCard { background: var(--card); border-radius: 18px; padding: 20px; margin-bottom: 18px; }
 
-  /* ---- FRIENDS TAB (v21 neat pass) ---- */
-  .friendsHero { background: var(--card); border: 1px solid var(--line);
-                 border-radius: 20px; padding: 24px 18px 18px;
-                 margin-bottom: 22px; text-align: center; }
-  .friendsHero .heroLabel { font-size: 10.5px; letter-spacing: 2.5px;
-                            text-transform: uppercase; color: var(--ink-dim);
-                            margin-bottom: 12px; font-weight: 700; }
-  .codeChip { display: inline-block; background: var(--accent-soft);
-              border: 1.5px dashed var(--accent-border); border-radius: 14px;
-              padding: 12px 24px; font-size: 30px; font-weight: 800;
-              letter-spacing: 6px; color: var(--accent); cursor: pointer;
-              user-select: all; transition: transform 0.12s ease; }
-  .codeChip:active { transform: scale(0.96); }
-  .codeHint { font-size: 11.5px; color: var(--ink-dim);
-              line-height: 1.55; margin: 12px 0 14px; }
-  form.tight { margin-bottom: 10px; }
-
-  /* ---- EDIT SHEET (v23) — change anything without deleting it ---- */
-  #editSheet { position: absolute; inset: 0; z-index: 84;
-               background: rgba(8, 10, 18, 0.72);
-               display: none; align-items: center; justify-content: center;
-               padding: 22px; }
-  #editSheet.on { display: flex; animation: fadeIn 0.22s ease; }
-  #editBox { background: var(--panel); border: 1px solid var(--line);
-             border-radius: 18px; padding: 20px; width: 100%;
-             max-width: 340px; display: flex; flex-direction: column; gap: 10px; }
-  #editBox h3 { font-size: 15px; }
-  #editSave, #editCancel { border: none; border-radius: 10px; padding: 11px;
-                           font-family: inherit; font-weight: 800;
-                           font-size: 13px; cursor: pointer; }
-  #editSave { background: linear-gradient(180deg, var(--accent),
-              color-mix(in srgb, var(--accent) 62%, #101425)); color: #fff; }
-  #editCancel { background: #262b44; color: #cdd3ea; }
-  .formLabel { font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase;
-               color: var(--ink-dim); font-weight: 700; margin-bottom: -4px; }
   #timerMode { text-align: center; font-size: 12px; font-weight: 800; letter-spacing: 1px;
                text-transform: uppercase; color: #7dc4ff; }
   #timerMode.break { color: #7de8a0; }
@@ -833,12 +798,12 @@
 
   <!-- ===== PAGE: FRIENDS 👥 (share schedules, codes, groups) ===== -->
   <div class="page" id="page-friends">
-    <div class="friendsHero">
-      <div class="heroLabel">My share code</div>
-      <div class="codeChip" id="myCodeVal" title="Tap to copy">——————</div>
-      <p class="codeHint">Tap the code to copy it.<br>A friend types it under “Add a friend” to add you.</p>
+    <h2>👥 My share code</h2>
+    <div class="studyCard" style="text-align:center;">
+      <div id="myCodeVal" style="font-size:26px;font-weight:800;letter-spacing:4px;color:var(--accent);">——————</div>
+      <p style="font-size:11px;color:var(--ink-dim);margin:6px 0 10px;">Give this code to a friend so they can add you.</p>
       <button class="smallBtn" id="publishBtn" style="width:100%;">📤 Share my schedule</button>
-      <div id="pubStatus" style="font-size:11.5px;color:var(--ink-dim);margin-top:8px;min-height:14px;"></div>
+      <div id="pubStatus" style="font-size:11px;color:var(--ink-dim);margin-top:6px;"></div>
     </div>
 
     <h2>➕ Add a friend</h2>
@@ -849,14 +814,12 @@
     <div id="friendsList"></div>
 
     <h2>👨‍👩‍👧‍👦 Groups</h2>
-    <form id="groupForm" class="tight">
-      <div class="formLabel">Start a group</div>
-      <input id="groupNameInput" placeholder="Group name (e.g. Class 9B)" maxlength="24">
+    <form id="groupForm">
+      <input id="groupNameInput" placeholder="New group name (e.g. Class 9B)" maxlength="24">
       <button type="submit">+ Create group</button>
     </form>
     <form id="joinGroupForm">
-      <div class="formLabel">Or join one</div>
-      <input id="groupCodeInput" placeholder="Group code (e.g. G-K7M2QX)" maxlength="10" autocomplete="off" style="text-transform:uppercase;">
+      <input id="groupCodeInput" placeholder="Join with a group code (e.g. G-K7M2QX)" maxlength="10" autocomplete="off" style="text-transform:uppercase;">
       <button type="submit">Join group</button>
     </form>
     <div id="groupsList"></div>
@@ -1192,28 +1155,6 @@
     </div>
   </div>
 
-  <!-- ===== the EDIT sheet (v23) — fix anything without deleting it ===== -->
-  <div id="editSheet">
-    <div id="editBox">
-      <h3 id="editTitle">✎ Edit</h3>
-      <input id="editName" maxlength="40" placeholder="Name">
-      <div class="sliderRow" id="editDayRow"><label>Day</label><select id="editDay" style="flex:1"></select></div>
-      <div class="sliderRow" id="editDateRow"><label>Due</label><input id="editDate" type="date" style="flex:1"></div>
-      <div class="sliderRow"><label>Time</label><input id="editTime" type="time" style="flex:1"></div>
-      <div class="sliderRow" id="editPrioRow"><label>Priority</label>
-        <select id="editPrio" style="flex:1">
-          <option value="high">🔴 High</option>
-          <option value="med">🟡 Medium</option>
-          <option value="low">🟢 Low</option>
-        </select>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button type="button" id="editSave" style="flex:1">Save</button>
-        <button type="button" id="editCancel" style="flex:1">Cancel</button>
-      </div>
-    </div>
-  </div>
-
   <!-- ===== the QUIZ overlay (a self-test run) ===== -->
   <div id="quizOverlay">
     <div id="quizProgress"></div>
@@ -1462,7 +1403,7 @@ function activityCard(a, showDay) {
   return '<div class="card" style="border-left-color:' + a.color + '">'
     + '<div style="flex:1">' + '<div class="name">' + a.name + '</div>'
     + '<div class="sub">' + (showDay ? a.day + ' · ' : '') + a.time + '</div></div>'
-    + '<button class="xbtn" style="color:#7dc4ff" onclick="openEditActivity(' + a.id + ')" title="Edit">✎</button>'
+    + '<button class="xbtn" style="color:#7dc4ff" onclick="renameActivity(' + a.id + ')" title="Rename">✎</button>'
     + '<button class="xbtn" onclick="deleteActivity(' + a.id + ')">✕</button>'
     + '</div>';
 }
@@ -1479,7 +1420,6 @@ function taskCard(task) {
     + '<div class="sub">' + (a ? a.name : 'General') + (task.time ? ' · ' + task.time : '') + '</div></div>'
     + (task.proof ? '<button class="proofBtn" onclick="viewProof(' + task.id + ')" title="See proof photo">📷</button>' : '')
     + '<span class="badge ' + info.cls + '">' + info.label + '</span>'
-    + '<button class="xbtn" style="color:#7dc4ff" onclick="openEditTask(' + task.id + ')" title="Edit">✎</button>'
     + '<button class="xbtn" onclick="deleteTask(' + task.id + ')">✕</button>'
     + '</div>';
 }
@@ -1698,78 +1638,6 @@ function celebrateTaskDone(t) {
 // call these by name from inside the HTML (onclick="toggleTask(3)").
 // So we deliberately publish these three on the global window,
 // otherwise the buttons shout into the void and nothing happens.
-// ---- the EDIT sheet (v23): one overlay edits BOTH kinds of thing ----
-// activities get name + day + time; tasks get name + due date + time
-// + priority. editTarget remembers what's open so Save knows where
-// to put the changes.
-let editTarget = null;
-function openEditActivity(id) {
-  const a = activityById(id);
-  if (!a) return;
-  editTarget = { kind: 'activity', id };
-  document.getElementById('editTitle').textContent = '✎ Edit activity';
-  document.getElementById('editDay').innerHTML =
-    DAYS.map(d => '<option' + (d === a.day ? ' selected' : '') + '>' + d + '</option>').join('');
-  document.getElementById('editDayRow').style.display = 'flex';
-  document.getElementById('editDateRow').style.display = 'none';
-  document.getElementById('editPrioRow').style.display = 'none';
-  document.getElementById('editName').value = a.name;
-  document.getElementById('editName').maxLength = 24;
-  document.getElementById('editTime').value = a.time || '08:00';
-  document.getElementById('editSheet').classList.add('on');
-}
-function openEditTask(id) {
-  const t = tasks.find(x => x.id === id);
-  if (!t) return;
-  editTarget = { kind: 'task', id };
-  document.getElementById('editTitle').textContent = '✎ Edit task';
-  document.getElementById('editDayRow').style.display = 'none';
-  document.getElementById('editDateRow').style.display = 'flex';
-  document.getElementById('editPrioRow').style.display = 'flex';
-  document.getElementById('editName').value = t.title;
-  document.getElementById('editName').maxLength = 40;
-  document.getElementById('editDate').value = t.due || '';
-  document.getElementById('editTime').value = t.time || '';
-  document.getElementById('editPrio').value = t.priority || 'med';
-  document.getElementById('editSheet').classList.add('on');
-}
-function closeEditSheet() {
-  editTarget = null;
-  document.getElementById('editSheet').classList.remove('on');
-}
-document.getElementById('editCancel').addEventListener('click', closeEditSheet);
-document.getElementById('editSheet').addEventListener('click', (e) => {
-  if (e.target.id === 'editSheet') closeEditSheet();   // tap outside = cancel
-});
-document.getElementById('editSave').addEventListener('click', () => {
-  if (!editTarget) return;
-  const name = document.getElementById('editName').value.trim();
-  if (!name) { showToast('Give it a name first'); return; }
-  if (hasBadWords(name)) { showToast("Let's keep it clean 😅"); return; }
-  if (editTarget.kind === 'activity') {
-    const a = activityById(editTarget.id);
-    if (a) {
-      a.name = name.slice(0, 24);
-      a.day = document.getElementById('editDay').value;
-      a.time = document.getElementById('editTime').value || a.time;
-    }
-  } else {
-    const t = tasks.find(x => x.id === editTarget.id);
-    if (t) {
-      t.title = name.slice(0, 40);
-      const due = document.getElementById('editDate').value;
-      if (due) t.due = due;
-      t.time = document.getElementById('editTime').value || '';
-      t.priority = document.getElementById('editPrio').value;
-    }
-  }
-  closeEditSheet();
-  render();
-  showToast('✏️ Saved');
-});
-window.openEditActivity = openEditActivity;
-window.openEditTask = openEditTask;
-
 window.toggleTask = toggleTask;
 window.deleteTask = deleteTask;
 window.deleteActivity = deleteActivity;
@@ -3772,7 +3640,7 @@ function renderFriends() {
     ? friends.map((f, i) =>
         '<div class="shopItem"><div style="font-size:22px">👤</div>'
         + '<div class="grow"><div class="name">' + escapeHtml(f.account) + '</div>'
-        + '<div class="desc">Code ' + escapeHtml(f.code) + ' · tap View for their week</div></div>'
+        + '<div class="desc">code ' + escapeHtml(f.code) + '</div></div>'
         + '<button class="shopBtn buy" data-viewfriend="' + i + '">View</button>'
         + '<button class="xbtn" data-delfriend="' + i + '">✕</button></div>'
         + '<div id="friendView' + i + '"></div>').join('')
@@ -3782,7 +3650,7 @@ function renderFriends() {
     ? gs.map((g, i) =>
         '<div class="shopItem"><div style="font-size:22px">👨‍👩‍👧‍👦</div>'
         + '<div class="grow"><div class="name">' + escapeHtml(g.name) + '</div>'
-        + '<div class="desc">Code ' + escapeHtml(g.code) + ' · share it to invite</div></div>'
+        + '<div class="desc">code ' + escapeHtml(g.code) + ' — share it to invite</div></div>'
         + '<button class="shopBtn buy" data-viewgroup="' + i + '">💬 Open</button>'
         + '<button class="xbtn" data-delgroup="' + i + '">✕</button></div>'
         + '<div id="groupView' + i + '"></div>').join('')
@@ -3802,15 +3670,6 @@ async function ensureMyCode() {
     renderFriends();
   } catch (e) { friendsSay('Could not get a code — are the friends rules published?'); }
 }
-
-// tap the big code to copy it (v21 neat pass)
-document.getElementById('myCodeVal').addEventListener('click', async () => {
-  if (!game.myCode) return;
-  try {
-    await navigator.clipboard.writeText(game.myCode);
-    document.getElementById('pubStatus').textContent = '✓ Code copied — send it to a friend!';
-  } catch (e) { /* clipboard blocked — the code is still selectable */ }
-});
 
 document.getElementById('publishBtn').addEventListener('click', async () => {
   if (needCloud()) return;
@@ -4098,40 +3957,17 @@ document.getElementById('calDisconnectBtn').addEventListener('click', () => {
 });
 // a calendar event drawn as a read-only gold-edged card
 function calEventCard(ev) {
-  // each card carries its position in the master list so ✕ knows
-  // exactly which event to remove (v22 — they used to be read-only)
-  const idx = (game.calEvents || []).indexOf(ev);
   return '<div class="card" style="border-left-color:var(--gold)">'
     + '<div style="flex:1"><div class="name">📆 ' + escapeHtml(ev.title) + '</div>'
     + '<div class="sub">' + (ev.time ? escapeHtml(ev.time) : 'all day') + ' · from Google Calendar</div></div>'
-    + '<button class="xbtn" onclick="hideCalEvent(' + idx + ')" title="Remove this event">✕</button>'
     + '</div>';
 }
-// remove ONE imported calendar event from the planner.
-// (Only hides it here — your real Google Calendar is untouched,
-// and a Re-import will bring it back.)
-function hideCalEvent(i) {
-  if (!game.calEvents || i < 0) return;
-  game.calEvents.splice(i, 1);
-  render();
-  showToast('📆 Event removed from your planner');
-}
-window.hideCalEvent = hideCalEvent;
 
 // ------------------------------------------------------------
 // PART 18: THE UPDATE LOG 🆕 — every feature drop, newest first.
 // It's a LIST OF DATA (of course it is) rendered into Settings.
 // ------------------------------------------------------------
 const UPDATE_LOG = [
-  { v: 'v23', when: 'Sep 2026', items: [
-      '✏️ Edit anything — activities (name, day, time) and tasks (name, due, time, priority) via the ✎ button',
-      '🛠 No more delete-and-remake to fix a typo' ] },
-  { v: 'v22', when: 'Sep 2026', items: [
-      '📆 Calendar events now have a ✕ — remove any single imported event',
-      'ℹ️ Removing one only hides it here; your real Google Calendar is safe' ] },
-  { v: 'v21', when: 'Sep 2026', items: [
-      '👥 Friends tab tidied up — big tap-to-copy share code, clearer sections',
-      '📋 Tap your code to copy it instantly' ] },
   { v: 'v20', when: 'Aug 2026', items: [
       '✨ Full redesign — more space, bigger text, calmer layout everywhere',
       '📆 Connect your Google Calendar (read-only) — events show in Today & Schedule',
